@@ -9,7 +9,6 @@ st.set_page_config(page_title="CRM - Hillside", page_icon="🏠", layout="wide")
 st.title("🏠 Accueil & Hub Central - Hillside")
 st.markdown("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet.")
 
-# Connexion sécurisée avec nettoyage automatique et blindé de la clé privée
 @st.cache_resource
 def get_gspread_client():
     scope = [
@@ -17,26 +16,37 @@ def get_gspread_client():
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # Récupération des secrets
-    creds_dict = dict(st.secrets["connections"]["gsheets"])
+    # On reconstruit proprement les credentials à partir des secrets individuels
+    secrets = st.secrets["connections"]["gsheets"]
     
-    # Nettoyage et formatage blindé de la clé privée
-    if "private_key" in creds_dict:
-        pk = creds_dict["private_key"].strip()
-        # Remplace les éventuels "\n" textuels par de vrais retours à la ligne
-        pk = pk.replace("\\n", "\n")
-        # S'assure que les en-têtes et pieds de page sont bien séparés par des sauts de ligne
-        pk = pk.replace("-----BEGIN PRIVATE KEY-----", "-----BEGIN PRIVATE KEY-----\n")
-        pk = pk.replace("-----END PRIVATE KEY-----", "\n-----END PRIVATE KEY-----")
-        creds_dict["private_key"] = pk
-        
+    pk = str(secrets["private_key"])
+    # Nettoyage en profondeur des retours à la ligne
+    pk = pk.replace("\\n", "\n")
+    if not pk.startswith("-----BEGIN PRIVATE KEY-----"):
+        pk = "-----BEGIN PRIVATE KEY-----\n" + pk.strip()
+    if not pk.endswith("-----END PRIVATE KEY-----"):
+        pk = pk.strip() + "\n-----END PRIVATE KEY-----"
+
+    creds_dict = {
+        "type": "service_account",
+        "project_id": str(secrets.get("project_id", "crm-hillside")),
+        "private_key_id": str(secrets.get("private_key_id", "")),
+        "private_key": pk,
+        "client_email": str(secrets.get("client_email", "")),
+        "client_id": str(secrets.get("client_id", "")),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": str(secrets.get("client_x509_cert_url", ""))
+    }
+    
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return gspread.authorize(creds)
 
 try:
     client = get_gspread_client()
     
-    # ⚠️ Mettez ici le nom exact de votre fichier Google Sheet sur votre Google Drive
+    # Connexion à votre fichier exact
     sh = client.open("Suivi Commercial & Pipeline Leads - Immobilier")
     
     # Menu latéral pour choisir l'onglet à afficher
@@ -56,6 +66,5 @@ try:
 
 except Exception as e:
     st.error("⚠️ Impossible de récupérer les données du Google Sheet pour le moment.")
-    st.info("Vérifiez que le nom de votre Google Sheet dans le code (`client.open(...)`) correspond exactement au nom réel du fichier sur Google Drive.")
     with st.expander("Voir les détails techniques de l'erreur"):
         st.write(e)
