@@ -9,7 +9,7 @@ st.set_page_config(page_title="CRM - Hillside", page_icon="🏠", layout="wide")
 st.title("🏠 Accueil & Hub Central - Hillside")
 st.markdown("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet.")
 
-# Connexion sécurisée avec correction automatique de la clé privée
+# Connexion sécurisée avec nettoyage automatique et blindé de la clé privée
 @st.cache_resource
 def get_gspread_client():
     scope = [
@@ -17,12 +17,18 @@ def get_gspread_client():
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # Récupération des secrets sous forme de dictionnaire modifiable
+    # Récupération des secrets
     creds_dict = dict(st.secrets["connections"]["gsheets"])
     
-    # Correction automatique des sauts de ligne de la clé privée si nécessaire
+    # Nettoyage et formatage blindé de la clé privée
     if "private_key" in creds_dict:
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        pk = creds_dict["private_key"].strip()
+        # Remplace les éventuels "\n" textuels par de vrais retours à la ligne
+        pk = pk.replace("\\n", "\n")
+        # S'assure que les en-têtes et pieds de page sont bien séparés par des sauts de ligne
+        pk = pk.replace("-----BEGIN PRIVATE KEY-----", "-----BEGIN PRIVATE KEY-----\n")
+        pk = pk.replace("-----END PRIVATE KEY-----", "\n-----END PRIVATE KEY-----")
+        creds_dict["private_key"] = pk
         
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return gspread.authorize(creds)
@@ -30,7 +36,7 @@ def get_gspread_client():
 try:
     client = get_gspread_client()
     
-    # ⚠️ Mettez ici le nom exact de votre fichier Google Sheet (celui qui apparaît en haut de votre fichier sur Google Drive)
+    # ⚠️ Mettez ici le nom exact de votre fichier Google Sheet sur votre Google Drive
     sh = client.open("Nom_Exact_De_Votre_Google_Sheet")
     
     # Menu latéral pour choisir l'onglet à afficher
