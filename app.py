@@ -18,22 +18,31 @@ def get_gspread_client():
     
     secrets = st.secrets["connections"]["gsheets"]
     
-    # Nettoyage radical et reconstruction propre de la clé privée
+    # Extraction et nettoyage radical de la clé privée
     raw_key = str(secrets["private_key"])
-    # Supprime les guillemets parasites au début/fin
+    
+    # On retire les guillemets superflus s'il y en a
     raw_key = raw_key.strip().strip('"').strip("'")
     
-    # Restaure les sauts de ligne si elle est sur une seule ligne
+    # On gère tous les types de sauts de ligne possibles (\n ou textuels)
     if "\\n" in raw_key:
-        lines = raw_key.split("\\n")
+        parts = raw_key.split("\\n")
     else:
-        lines = raw_key.split("\n")
+        parts = raw_key.split("\n")
         
-    cleaned_lines = [l.strip() for l in lines if l.strip()]
+    # Filtrage pour ne garder que le contenu alphanumérique de la clé
+    clean_parts = []
+    for p in parts:
+        p_str = p.strip()
+        if p_str and "PRIVATE KEY" not in p_str:
+            clean_parts.append(p_str)
+            
+    # Reconstitution standardisée et rigoureuse du format PEM
+    key_body = "".join(clean_parts)
+    # Découpage propre en lignes de 64 caractères (standard RSA)
+    formatted_body = "\n".join(key_body[i:i+64] for i in range(0, len(key_body), 64))
     
-    # S'assure que les balises PEM sont présentes et correctes
-    body_lines = [l for l in cleaned_lines if "PRIVATE KEY" not in l]
-    pk = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(body_lines) + "\n-----END PRIVATE KEY-----\n"
+    pk = f"-----BEGIN PRIVATE KEY-----\n{formatted_body}\n-----END PRIVATE KEY-----\n"
 
     creds_dict = {
         "type": "service_account",
