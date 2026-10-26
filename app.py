@@ -16,16 +16,17 @@ def get_gspread_client():
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # On reconstruit proprement les credentials à partir des secrets individuels
     secrets = st.secrets["connections"]["gsheets"]
     
-    pk = str(secrets["private_key"])
-    # Nettoyage en profondeur des retours à la ligne
+    # Nettoyage ultra-robuste de la clé privée pour éliminer tout caractère parasite ou guillemet en trop
+    pk = str(secrets["private_key"]).strip()
+    pk = pk.strip('"').strip("'")  # Supprime les guillemets englobants si présents
     pk = pk.replace("\\n", "\n")
-    if not pk.startswith("-----BEGIN PRIVATE KEY-----"):
-        pk = "-----BEGIN PRIVATE KEY-----\n" + pk.strip()
-    if not pk.endswith("-----END PRIVATE KEY-----"):
-        pk = pk.strip() + "\n-----END PRIVATE KEY-----"
+    
+    if "-----BEGIN PRIVATE KEY-----" not in pk:
+        pk = "-----BEGIN PRIVATE KEY-----\n" + pk
+    if "-----END PRIVATE KEY-----" not in pk:
+        pk = pk + "\n-----END PRIVATE KEY-----"
 
     creds_dict = {
         "type": "service_account",
@@ -46,7 +47,7 @@ def get_gspread_client():
 try:
     client = get_gspread_client()
     
-    # Connexion à votre fichier exact
+    # Connexion à votre fichier exact sur Google Drive
     sh = client.open("Suivi Commercial & Pipeline Leads - Immobilier")
     
     # Menu latéral pour choisir l'onglet à afficher
