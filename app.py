@@ -18,15 +18,22 @@ def get_gspread_client():
     
     secrets = st.secrets["connections"]["gsheets"]
     
-    # Nettoyage ultra-robuste de la clé privée pour éliminer tout caractère parasite ou guillemet en trop
-    pk = str(secrets["private_key"]).strip()
-    pk = pk.strip('"').strip("'")  # Supprime les guillemets englobants si présents
-    pk = pk.replace("\\n", "\n")
+    # Nettoyage radical et reconstruction propre de la clé privée
+    raw_key = str(secrets["private_key"])
+    # Supprime les guillemets parasites au début/fin
+    raw_key = raw_key.strip().strip('"').strip("'")
     
-    if "-----BEGIN PRIVATE KEY-----" not in pk:
-        pk = "-----BEGIN PRIVATE KEY-----\n" + pk
-    if "-----END PRIVATE KEY-----" not in pk:
-        pk = pk + "\n-----END PRIVATE KEY-----"
+    # Restaure les sauts de ligne si elle est sur une seule ligne
+    if "\\n" in raw_key:
+        lines = raw_key.split("\\n")
+    else:
+        lines = raw_key.split("\n")
+        
+    cleaned_lines = [l.strip() for l in lines if l.strip()]
+    
+    # S'assure que les balises PEM sont présentes et correctes
+    body_lines = [l for l in cleaned_lines if "PRIVATE KEY" not in l]
+    pk = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(body_lines) + "\n-----END PRIVATE KEY-----\n"
 
     creds_dict = {
         "type": "service_account",
