@@ -9,21 +9,28 @@ st.set_page_config(page_title="CRM - Hillside", page_icon="🏠", layout="wide")
 st.title("🏠 Accueil & Hub Central - Hillside")
 st.markdown("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet.")
 
-# Connexion directe et sécurisée à Google Sheets
+# Connexion sécurisée avec correction automatique de la clé privée
 @st.cache_resource
 def get_gspread_client():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
+    
+    # Récupération des secrets sous forme de dictionnaire modifiable
     creds_dict = dict(st.secrets["connections"]["gsheets"])
+    
+    # Correction automatique des sauts de ligne de la clé privée si nécessaire
+    if "private_key" in creds_dict:
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return gspread.authorize(creds)
 
 try:
     client = get_gspread_client()
     
-    # ⚠️ REMPLACEZ "Nom_Exact_De_Votre_Google_Sheet" par le vrai nom de votre fichier Google Sheets sur Drive
+    # ⚠️ Mettez ici le nom exact de votre fichier Google Sheet (celui qui apparaît en haut de votre fichier sur Google Drive)
     sh = client.open("Nom_Exact_De_Votre_Google_Sheet")
     
     # Menu latéral pour choisir l'onglet à afficher
@@ -43,6 +50,6 @@ try:
 
 except Exception as e:
     st.error("⚠️ Impossible de récupérer les données du Google Sheet pour le moment.")
-    st.info("Vérifiez bien d'avoir mis le nom exact de votre fichier Google Sheet dans le code (`client.open(...)`).")
+    st.info("Vérifiez que le nom de votre Google Sheet dans le code (`client.open(...)`) correspond exactement au nom réel du fichier sur Google Drive.")
     with st.expander("Voir les détails techniques de l'erreur"):
         st.write(e)
