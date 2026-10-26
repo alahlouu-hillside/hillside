@@ -37,7 +37,7 @@ try:
     client = get_gspread_client()
     
     # ⚠️ Mettez ici le nom exact de votre fichier Google Sheet sur votre Google Drive
-    sh = client.open("Nom_Exact_De_Votre_Google_Sheet")
+    sh = client.open("Suivi Commercial & Pipeline Leads - Immobilier - Google Sheets")
     
     # Menu latéral pour choisir l'onglet à afficher
     page = st.sidebar.selectbox("Navigation", ["Tableau de Bord", "Pipeline Commercial"])
