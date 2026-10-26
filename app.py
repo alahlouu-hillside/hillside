@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import re
 from google.oauth2.service_account import Credentials
 
 # Configuration de la page
@@ -18,30 +19,15 @@ def get_gspread_client():
     
     secrets = st.secrets["connections"]["gsheets"]
     
-    # Extraction et nettoyage radical de la clé privée
+    # Nettoyage chirurgical et extraction sécurisée de la clé privée
     raw_key = str(secrets["private_key"])
     
-    # On retire les guillemets superflus s'il y en a
-    raw_key = raw_key.strip().strip('"').strip("'")
+    # On ne garde que les caractères valides d'une clé base64 (chiffres, lettres, +, /, =)
+    valid_chars = re.findall(r'[A-Za-z0-9+/=]', raw_key)
+    key_body = "".join(valid_chars)
     
-    # On gère tous les types de sauts de ligne possibles (\n ou textuels)
-    if "\\n" in raw_key:
-        parts = raw_key.split("\\n")
-    else:
-        parts = raw_key.split("\n")
-        
-    # Filtrage pour ne garder que le contenu alphanumérique de la clé
-    clean_parts = []
-    for p in parts:
-        p_str = p.strip()
-        if p_str and "PRIVATE KEY" not in p_str:
-            clean_parts.append(p_str)
-            
-    # Reconstitution standardisée et rigoureuse du format PEM
-    key_body = "".join(clean_parts)
-    # Découpage propre en lignes de 64 caractères (standard RSA)
+    # Découpage standardisé en lignes de 64 caractères
     formatted_body = "\n".join(key_body[i:i+64] for i in range(0, len(key_body), 64))
-    
     pk = f"-----BEGIN PRIVATE KEY-----\n{formatted_body}\n-----END PRIVATE KEY-----\n"
 
     creds_dict = {
