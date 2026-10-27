@@ -9,9 +9,7 @@ st.markdown("Tableau de bord de pilotage commercial connecté en direct avec vot
 
 @st.cache_resource
 def get_gspread_client():
-    # Connexion native via les secrets sécurisés de Streamlit Cloud
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    return gspread.service_account_from_dict(creds_dict)
+    return gspread.service_account(filename="credentials.json")
 
 try:
     client = get_gspread_client()
