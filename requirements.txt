@@ -1,4 +1,5 @@
-streamlit
+streamlit==1.38.0
 pandas
-gspread
-google-auth
+gspread==6.1.0
+google-auth==2.29.0
+cryptography==42.0.7
