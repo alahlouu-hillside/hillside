@@ -134,7 +134,7 @@ elif menu == "📁 Gestion des Plans & Documents":
     if uploaded_file is not None:
         with open(uploaded_file.name, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.success(f"Le fichier **{uploaded_file.name}`} a été enregistré avec succès sur le serveur !")
+        st.success(f"Le fichier {uploaded_file.name} a été enregistré avec succès sur le serveur !")
         
     st.markdown("---")
     st.subheader("📥 Plans & Documents Disponibles")
