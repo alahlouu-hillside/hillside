@@ -3,3 +3,4 @@ pandas
 gspread==6.1.0
 google-auth==2.29.0
 cryptography==42.0.7
+pillow>=11.0.0
