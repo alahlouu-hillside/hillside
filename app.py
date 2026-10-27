@@ -58,7 +58,7 @@ st.markdown(
 )
 
 
-# --- INITIALISATION DE LA SÉCURITÉ & CHARGEMENT DES 86 LOTS ---
+# --- INITIALISATION DE LA SÉCURITÉ & CHARGEMENT DES LOTS DEPUIS L'EXCEL ---
 def init_db():
     conn = sqlite3.connect("crm_hillside.db", timeout=10.0)
     c = conn.cursor()
@@ -86,7 +86,7 @@ def init_db():
             cin_client TEXT, telephone TEXT, email TEXT, adresse TEXT,
             nom_client2 TEXT, cin_client2 TEXT, part_client1 REAL, part_client2 REAL,
             prix_catalogue REAL, remise REAL, prix_net REAL, 
-            pourcentage_avance REAL, acompte_verse REAL, date_ech_av1 TEXT,
+            pourcentage_avance REAL, acompte_verse TEXT, date_ech_av1 TEXT,
             avance2 REAL, date_ech_av2 TEXT,
             avance3 REAL, date_ech_av3 TEXT,
             reliquat REAL, date_ech_reliquat TEXT,
@@ -806,8 +806,8 @@ elif menu == "👥 Portefeuille Prospects & Clients":
 
 
 elif menu == "🏢 Catalogue & Stocks Immobiliers":
-    st.title("🏢 Catalogue & Stocks Immobiliers")
-    st.caption("Consultez l'état des lots (disponibles/réservés), filtrez par critères et téléchargez leurs plans 2D.")
+    st.title("🏢 Catalogue & Stocks Immobiliers (Intégration Excel TDB)")
+    st.caption("Consultez l'ensemble des lots importés de votre fichier Excel de pricing : surfaces, prix et disponibilités en direct.")
     st.markdown("---")
 
     if not df_lots.empty:
@@ -843,10 +843,16 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
         df_lots_affiche = df_f.copy()
         df_lots_affiche.index = range(1, len(df_lots_affiche) + 1)
 
+        # Formatage des colonnes financières et surfaces pour un affichage pro
         for col_fin in ["prix_plancher", "prix_catalogue", "remise_max"]:
             if col_fin in df_lots_affiche.columns:
                 df_lots_affiche[col_fin] = df_lots_affiche[col_fin].apply(
-                    lambda x: f"{int(float(x)):,}".replace(",", " ") if pd.notna(x) and str(x).strip() != "" else x
+                    lambda x: f"{int(float(x)):,}".replace(",", " ") + " MAD" if pd.notna(x) and str(x).strip() != "" else x
+                )
+        for col_surf in ["surface_totale", "surface_interieure", "terrasse", "jardin"]:
+            if col_surf in df_lots_affiche.columns:
+                df_lots_affiche[col_surf] = df_lots_affiche[col_surf].apply(
+                    lambda x: f"{float(x):.2f} m²" if pd.notna(x) and str(x).strip() != "" else x
                 )
 
         def colorer_statut(val):
@@ -859,7 +865,7 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
         df_styled = df_lots_affiche.style.map(colorer_statut, subset=["statut"])
         st.dataframe(df_styled, use_container_width=True)
     else:
-        st.warning("⚠️ Aucun appartement trouvé dans la base locale.")
+        st.warning("⚠️ Aucun appartement trouvé dans la base locale. Veuillez vérifier l'importation de votre fichier TDB dans les paramètres.")
 
     st.markdown("---")
     st.subheader("📥 Téléchargement des Plans 2D des Lots")
