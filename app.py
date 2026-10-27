@@ -375,25 +375,6 @@ def get_df(table):
     return df.fillna("")
 
 
-def trouver_plan(code_lot):
-    dossier = "Hillside Fiches Plan 2d"
-    if not os.path.exists(dossier):
-        return None
-    code_net = str(code_lot).strip().upper()
-    for root, _, files in os.walk(dossier):
-        for f in files:
-            # Recherche souple : vérifie si le code du lot (ex: A1) est présent dans le nom du fichier
-            nom_fichier_upper = f.upper()
-            if code_net == nom_fichier_upper.split('.')[0] or f"__{code_net}__" in nom_fichier_upper or f" {code_net} " in nom_fichier_upper or f"LOT {code_net}" in nom_fichier_upper or f"{code_net}." in nom_fichier_upper:
-                return os.path.join(root, f)
-    # Recherche large en secours si correspondance exacte introuvable
-    for root, _, files in os.walk(dossier):
-        for f in files:
-            if code_net in f.upper():
-                return os.path.join(root, f)
-    return None
-
-
 # --- GESTION DES CLÉS API ---
 if "saved_api_keys" not in st.session_state:
     cle_defaut = ""
@@ -850,7 +831,6 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
         df_lots_affiche = df_f.copy()
         df_lots_affiche.index = range(1, len(df_lots_affiche) + 1)
 
-        # Formatage des colonnes financières et surfaces pour un affichage pro
         for col_fin in ["prix_plancher", "prix_catalogue", "remise_max"]:
             if col_fin in df_lots_affiche.columns:
                 df_lots_affiche[col_fin] = df_lots_affiche[col_fin].apply(
@@ -872,36 +852,38 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
         df_styled = df_lots_affiche.style.map(colorer_statut, subset=["statut"])
         st.dataframe(df_styled, use_container_width=True)
     else:
-        st.warning("⚠️ Aucun appartement trouvé dans la base locale. Veuillez vérifier l'importation de votre fichier TDB dans les paramètres.")
+        st.warning("⚠️ Aucun appartement trouvé dans la base locale.")
 
     st.markdown("---")
-    st.subheader("📥 Visualisation & Téléchargement des Plans 2D des Lots")
-    tous_les_lots = df_lots["code"].tolist() if not df_lots.empty else []
-    if tous_les_lots:
-        lot_choisi_plan = st.selectbox("🔍 Choisir un lot (ex: A1, A4) pour visualiser ou imprimer son plan 2D :", tous_les_lots)
-        if lot_choisi_plan:
-            chemin_plan = trouver_plan(lot_choisi_plan)
-            if chemin_plan and os.path.exists(chemin_plan):
-                st.success(f"✅ Plan trouvé pour le lot **{lot_choisi_plan}**.")
+    st.subheader("📥 Visualisation, Impression & Téléchargement des Documents & Plans (Dossier CRM)")
+    
+    dossier_plans = "Hillside Fiches Plan 2d"
+    if os.path.exists(dossier_plans):
+        fichiers_disponibles = [f for f in os.listdir(dossier_plans) if not f.startswith('.')]
+        if fichiers_disponibles:
+            fichier_choisi = st.selectbox("📂 Sélectionner un document ou un catalogue de plans global :", fichiers_disponibles)
+            if fichier_choisi:
+                chemin_complet = os.path.join(dossier_plans, fichier_choisi)
+                st.success(f"✅ Fichier sélectionné : **{fichier_choisi}**")
                 
-                # Affichage direct de l'image ou du PDF dans l'application
-                extension = chemin_plan.lower().split('.')[-1]
-                if extension in ["png", "jpg", "jpeg"]:
-                    st.image(chemin_plan, caption=f"Plan 2D - Lot {lot_choisi_plan}", use_container_width=True)
-                elif extension == "pdf":
-                    st.info(f"📄 Le plan du lot **{lot_choisi_plan}** est au format PDF.")
+                # Aperçu visuel si c'est une image
+                ext = fichier_choisi.lower().split('.')[-1]
+                if ext in ["png", "jpg", "jpeg"]:
+                    st.image(chemin_complet, caption=f"Aperçu - {fichier_choisi}", use_container_width=True)
+                elif ext == "pdf":
+                    st.info(f"📄 Ce document est un fichier PDF global contenant plusieurs plans.")
                 
-                with open(chemin_plan, "rb") as f_plan:
+                with open(chemin_complet, "rb") as f_dl:
                     st.download_button(
-                        label=f"⬇️ Télécharger / Imprimer le plan du lot {lot_choisi_plan}",
-                        data=f_plan,
-                        file_name=os.path.basename(chemin_plan),
+                        label=f"⬇️ Télécharger / Imprimer le document : {fichier_choisi}",
+                        data=f_dl,
+                        file_name=fichier_choisi,
                         mime="application/octet-stream",
                     )
-            else:
-                st.warning(f"⚠️ Aucun fichier de plan 2D n'a été trouvé dans le dossier pour le lot **{lot_choisi_plan}**.")
+        else:
+            st.warning(f"⚠️ Le dossier '{dossier_plans}' est actuellement vide sur votre dépôt.")
     else:
-        st.info("Aucun lot disponible dans la base de données locale.")
+        st.error(f"🚨 Le dossier '{dossier_plans}' est introuvable à la racine de l'application.")
 
 
 elif menu == "✍️ Espace Ventes & Quittances":
