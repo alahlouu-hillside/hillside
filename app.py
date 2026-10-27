@@ -5,23 +5,32 @@ import os
 st.set_page_config(page_title="CRM - Hillside & Immobilier", page_icon="🏠", layout="wide")
 
 EXCEL_FILE = "suivi_commercial.xlsx"
+SHEET_NAME = "Pipeline Commercial"
 
-# Initialisation automatique du fichier Excel avec une structure complète si absent
-if not os.path.exists(EXCEL_FILE):
+# Initialisation automatique du fichier Excel si absent ou incorrect
+def init_excel():
     df_init = pd.DataFrame(columns=[
         "ID", "Nom Client", "Téléphone", "Email", "Projet / Villa", 
         "Type de bien", "Statut", "Budget (MAD)", "Date de contact", "Notes"
     ])
     with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl") as writer:
-        df_init.to_excel(writer, sheet_name="Pipeline Commercial", index=False)
+        df_init.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+
+if not os.path.exists(EXCEL_FILE):
+    init_excel()
 
 @st.cache_data(ttl=1)
 def load_data():
-    return pd.read_excel(EXCEL_FILE, sheet_name="Pipeline Commercial")
+    try:
+        return pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
+    except Exception:
+        # Si l'onglet n'existe pas, on réinitialise proprement le fichier
+        init_excel()
+        return pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
 
 def save_data(df):
     with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="w") as writer:
-        df.to_excel(writer, sheet_name="Pipeline Commercial", index=False)
+        df.to_excel(writer, sheet_name=SHEET_NAME, index=False)
 
 df_clients = load_data()
 
@@ -42,7 +51,7 @@ if menu == "🏠 Accueil & Hub Central":
     st.title("🏠 Accueil & Hub Central - Hillside")
     st.markdown("Tableau de bord de pilotage commercial intégré et autonome pour vos projets immobiliers.")
     
-    st.info("💡 **État du système :** L'application fonctionne en mode autonome avec un stockage local sécurisé (`suivi_commercial.xlsx`). Toutes vos données sont conservées en temps réel.")
+    st.info("💡 **État du système :** L'application fonctionne en mode autonome avec un stockage local sécurisé (`suivi_commercial.xlsx`).")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -167,7 +176,6 @@ elif menu == "⚙️ Paramètres & Données":
     
     st.subheader("📥 Exporter vos données")
     if not df_clients.empty:
-        # Bouton de téléchargement direct en Excel
         with open(EXCEL_FILE, "rb") as f:
             st.download_button(
                 label="Télécharger la base de données (Excel)",
