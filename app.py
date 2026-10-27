@@ -1069,7 +1069,7 @@ elif menu == "✍️ Espace Ventes & Quittances":
                     except Exception as e:
                         st.error(f"Erreur lors de l'enregistrement en base de données : {e}")
 
-  with tab_res_modif:
+    with tab_res_modif:
         st.subheader("✏️ Modifier les chèques, dates, switcher de bien, ou gérer un désistement")
         df_ventes_existantes = get_df("reservations")
         if df_ventes_existantes.empty:
@@ -1163,7 +1163,7 @@ elif menu == "✍️ Espace Ventes & Quittances":
                         st.success(f"🗑️ C'est OK ! Le dossier a été supprimé et l'appartement **{lot_a_liberer}** est de nouveau DISPONIBLE.")
                         st.rerun()
 
-  with tab_res_suivi:
+    with tab_res_suivi:
         st.subheader("📁 Tableau de Suivi des Ventes & Encaissements")
         df_r = get_df("reservations")
         if not df_r.empty:
