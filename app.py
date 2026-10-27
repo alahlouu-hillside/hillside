@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+df = pd.read_excel("suivi_commercial.xlsx", sheet_name="Tableau de Bord")
 import gspread
 
 st.set_page_config(page_title="CRM - Hillside", page_icon="🏠", layout="wide")
