@@ -240,39 +240,24 @@ import json
 
 def get_gspread_client():
     credentials_file = "credentials.json"
-    
+    if not os.path.exists(credentials_file):
+        st.sidebar.error("❌ Fichier credentials.json introuvable sur GitHub !")
+        return None
     try:
-        if hasattr(st, "secrets") and len(st.secrets) > 0:
-            if "gcp_service_account" in st.secrets:
-                secrets_dict = dict(st.secrets["gcp_service_account"])
-            else:
-                secrets_dict = dict(st.secrets)
-            
-            # Nettoyage et correction des sauts de ligne de la clé privée si elle contient des espaces ou des \n brisés
-            if "private_key" in secrets_dict:
-                pk = str(secrets_dict["private_key"])
-                # S'assure que les retours à la ligne sont bien des \n valides pour le format PEM
-                pk = pk.replace("\\n", "\n")
-                if not pk.startswith("-----BEGIN PRIVATE KEY-----"):
-                    # Réajustement si les en-têtes ont été altérés
-                    pass
-                secrets_dict["private_key"] = pk
-
-            with open(credentials_file, "w") as f:
-                json.dump(secrets_dict, f)
+        # Lecture du fichier JSON pour s'assurer que la clé privée est bien formatée
+        with open(credentials_file, "r") as f:
+            data = json.load(f)
+        
+        # Correction automatique des sauts de ligne dans la clé privée
+        if "private_key" in data:
+            data["private_key"] = data["private_key"].replace("\\n", "\n")
+        
+        creds = Credentials.from_service_account_info(data, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        return gc
     except Exception as e:
-        st.sidebar.info(f"Note secrets : {e}")
-
-    if os.path.exists(credentials_file):
-        try:
-            creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
-            gc = gspread.authorize(creds)
-            return gc
-        except Exception as e:
-            st.sidebar.error(f"Erreur connexion Google : {e}")
-            return None
-    return None
-
+        st.sidebar.error(f"Erreur connexion Google : {e}")
+        return None
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
     gc = get_gspread_client()
