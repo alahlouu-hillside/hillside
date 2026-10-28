@@ -242,9 +242,10 @@ import base64
 
 import base64
 
+import base64
+
 def get_gspread_client():
     try:
-        # Clé privée encodée en base64 pour éviter toute altération de caractères ou de sauts de ligne
         pk_b64 = (
             "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3FraUc5dzBCQVFF"
             "RkFBU0NCS3N3Z2dTanFnRUFBb0lCQVFDemZiWGlpL2tGZmNPUgo5M09GMVpCZEN6M2c5dmg0"
@@ -277,8 +278,7 @@ def get_gspread_client():
             "MzNyN3Q0aEUKNTFRSUNUNzhvbWNjZStBclpVSW05K1BwaGNGQ2xNNElVbmMyVDJqWUlpK015"
             "eXpkTHU4SkF2N0JCTjdJdFA2QlNfNG53RGFRbldvREF5cW5vSmZpbGU3NTV3VHlQZ29jZWRKe"
             "Uhyd0xKUUw3VGlwblYKT3A4aEhMUzBhZkE0NHdNZmpOMWd5N2M9Cg=="
-        )  # <-- Fermeture corrigée ici avec une parenthèse ')'
-
+        )
         real_private_key = base64.b64decode(pk_b64).decode('utf-8')
 
         creds_dict = {
@@ -294,13 +294,31 @@ def get_gspread_client():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hillside-bot%40crm-hillside.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         }
-        
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         gc = gspread.authorize(creds)
         return gc
     except Exception as e:
-        st.sidebar.error(f"Erreur Google : {e}")
         return None
+
+@st.cache_data(ttl=30)
+def synchroniser_google_sheet():
+    try:
+        gc = get_gspread_client()
+        if not gc:
+            return pd.DataFrame()
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        worksheet = sh.worksheet("pipeline commercial") if "pipeline commercial" in [w.title for w in sh.worksheets()] else sh.get_worksheet(0)
+        lignes = worksheet.get_all_values()
+        if len(lignes) > 1:
+            en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
+            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
+            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
+            df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
+            return df_gs
+    except Exception as e:
+        # En cas de blocage réseau, retourne un DataFrame vide instantanément sans bloquer l'app
+        return pd.DataFrame()
+    return pd.DataFrame()
         
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
