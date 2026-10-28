@@ -249,40 +249,38 @@ import base64
 
 def get_gspread_client():
     try:
-        pk_b64 = (
-            "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3FraUc5dzBCQVFF"
-            "RkFBU0NCS3N3Z2dTanFnRUFBb0lCQVFDemZiWGlpL2tGZmNPUgo5M09GMVpCZEN6M2c5dmg0"
-            "NHM0VXI2bWsvb28waXF2cjQ4eXNqOVppRkY2YUU5NjVQWmF0cE9HbWxlRzhUcnpHCkRHSjdk"
-            "TERaR0lvSnlGeHg4MGFCWUZMdlFydzhPSmNaM0Q5bC9LNjZRb251amhZY3dtRktVVFFKVzJG"
-            "aCtFdFoKUU5yQ2FIZnRaTGlqK00vdWs2RFlmNnVYSzUyWWlWanBMelF2cWVTRlArTWhYTmFx"
-            "Y0U0RUlWKzY2ekFtcUZEM1AKRjNrNHBZajNKa1ljM0hab0FZSGFnM2JIYXhvRE5aYjBIbFJr"
-            "a3plejNpRGFyN1VuTEUvTDhUeEtDVmFLcjVyMVpTCnduc0VvWjgwK3haSVNjSnJRcVAzNm9D"
-            "THoySUljV09nZ2s2dzlHVXVOcHMvSXBxZFdMSjRvdnp0ZitcckRDTCsKTXcxRlVqT2xBZ01C"
-            "QUFFQ2dnRUFLbS9QM2Y5b3ljcGQ3cnhqTHRYVHVoZ1JvY2dGdGJyczU1YnFxWjBFY2UvTQp0"
-            "QXJLYy9LWTdmblZSVjBNSUtYQktkbk9oSFlwR1pkclEvVy82bDNLS2FoenJuNno5aklqTG5j"
-            "T1R4ZnZGbwpuZ1g0djNwWGdaVjhwM0Z1R0pVZXYwWDFXSUZGR3RXdUZDQzNGaC9tbXNzUGdo"
-            "VlllSTVyODFKTlljbDNNYzlhCkltbzVBRVROd29TRHV5MmhSdlFnV1ZTYWdBbXk0amdET0wy"
-            "dStxZUlXTS8zeTRkTiAwMDBVWS9XVmVCcTZyTQpmZDU4b3d4SklYbHc2LzRQaC9nbGd6WUxo"
-            "UkdZd1dnbHF2aDY1b082OWRHTTJPNVd5anJqK0tWYkV0eUJuMHIKNHl5YTl6aXQ3SzZ3RzAw"
-            "ZTczSmpDUDlydDJrRXdVcnBDN3l6d1VBOFFLQmdRRFpZT3RWYTJ4VGhMVW5LU1ArClRHNW1v"
-            "T0tvMWJqZjFUZTZNdVBwb0IyN2dlM3N2T2pXbVRsNWsvRHVXRm1jUzB4SVpINWZ4aWhyaG5a"
-            "mJJRTIKZVJTUVdURmdEQ0NPb3pSS3IzZm5WVVB5WlVFYXJwODg0bHNWZ1dqWm5XTTNmYnJ0"
-            "WVBLTms2RmhGb3RCWXdnClJTaUMrNGlZcXFqdWw1RlYwU1RmNktONjlRS0JnUURUck9vZklt"
-            "SGhXYjR5UFpQdERJL2Q5VE4vbVhrZzRWU28KVkcwY0R0b3J5K1phZ0Vqdm1zU2E3Z3puWXBp"
-            "RlRxWnVpanVqQlBlMkxqZjAxbzRtNzlHeU1icFdqbEVERm16elpLU2tVMXB5QUROWUhFSEh5"
-            "elBVcUl6TnZmLzY5YkJJTnJGMmNDSU9ER1VNU0xXd2ZkcDdVZ2hkRzhkTjNuY3cKT1VVSXVQ"
-            "SDhRUUJnUUNCTVU3c1Y0bnNJanhkcDkvU2RVNXdCRlBuWkZqUi9VQzkweDBOYnJIOHl6NU9z"
-            "di9XLQorM3pqZWYrSlNFMEp6TnZyYjc2RDRWdUlmRU8vMXVlaEpOSmo2VmlsQXRBZXRmU2ZS"
-            "SDRJT01SQ3I2RzNIRTkxCmpDN0FjcEtVMmdJZkZKUjZCa2tyVnpQZTJvaFZsYVJ3VVdvQVhz"
-            "b1NJZXVBMGVmNG52SlJlUXFnT1FLQmdFTVoKc2xIU1RXLlBsdldDSU1xZFJ4YnhlMlRlL3FE"
-            "YnlVclloNjB1ZXRaRTRHa2V3b2NtYjhr3hkbngvSU5nRG5wcDdvOApHTHFBeWpndDk1R1dV"
-            "T2JETm5wNkVlbGpHN1h5Z29vdTljK1BwZ2VleDgrS3p1S2QyRXNSNkRNSTZOcisvVjYKbmRP"
-            "STBQNU9VdlpMZlBlODdwdjZHTzI4Z09pckdraEpZU3RndUhaV1dSQW9HQVp4QlBKUDJpWEJC"
-            "MzNyN3Q0aEUKNTFRSUNUNzhvbWNjZStBclpVSW05K1BwaGNGQ2xNNElVbmMyVDJqWUlpK015"
-            "eXpkTHU4SkF2N0JCTjdJdFA2QlNfNG53RGFRbldvREF5cW5vSmZpbGU3NTV3VHlQZ29jZWRKe"
-            "Uhyd0xKUUw3VGlwblYKT3A4aEhMUzBhZkE0NHdNZmpOMWd5N2M9Cg=="
-        )
-        real_private_key = base64.b64decode(pk_b64).decode('utf-8')
+        # Construction propre de la clé privée ligne par ligne sans encodage complexe
+        private_key_lines = [
+            "-----BEGIN PRIVATE KEY-----",
+            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCzvbXii/kFfcOR",
+            "93OF1ZBdCz3g9vh44s4Ur6mk/oo0iqvr48ysj9ZiEI6aE965PZatpOGmleG8TrzG",
+            "DGJ7dLDZGIoJyFxh80aBYFL3Qrw8OJcZ0D9l/K66QonujhYcwmFKUTQJW6Fh+EwJ",
+            "QNrCaHftZlij+M/uk6DY56uXK52YyPjpZEvqeSFP+MhXNaqcE4EIV+66zAmqFD3P",
+            "F3k4pYj3JkYc3HZAaYHq3bHaxoDNZb0HlRkzez3iDar7UnLE/L8TxKCVaKr5r1dS",
+            "wnSEoZ80+xZIscJrQpQ36oCLz2IIcWOggk6w9gUuNps/IpqdWLjdovZtf+9rDCL+",
+            "Mw1FujOlAgMBAAECggEAKm/P3f9oycpd7pxjLtXTuhgRocgFtbrs55bq4Y0Ece/M",
+            "tArKc/KY7fnVRV0MIKXBKdnMOhHYpGZdrQ/W/6l3KKahzrn6z9iJjLnClOTxfvFo",
+            "ngXx4v3pXgZv8p3FuGJevM0X1WIFFGtWuFCA3Fh/msssPghVYeI5r81JNYcl3Mc9a",
+            "Imo5AETNwoSDuy2hRvQgW6SagAmy4jGxDOL2u+qeIWM/3y4dN0103UY/WVeBq6rM",
+            "fd58owxJIXlw6/4Ph/glgzYLhRGYwWglqvh65mO69dGMZ2O5Wyjrj+KVbETyBn0r",
+            "4yya9zit7K6w3G0e73JjCP9rt2kTewUrpC7yzwUA8QKBgQDZYOtVa2xThlUnKSP+",
+            "TG5moOKoibjf1Te6MuPpoB27Ge3svOjWmTl5k/DuWFmcS0xIZH5fxihrhnZb2UE2",
+            "eRSQWTFgDCCOozRkHr3fNVUpyZUEarp884lsVgWjZnWM3fbrtYPKNn6FhFotBYwg",
+            "RSiC+4iYqqjul5FV0STf6KN69QKBgQDTrOofImHhWb4yPZPtDI/d9TN/mXKk4VSo",
+            "VG0cDtory+ZagEJvmsSa7gznYpiFTqZuIujBPE2Ljf01o4m79GyMbpWjlEDFmzzJ",
+            "SQkU1pyADHYHEHyzPUqIzNvx/69bBINr0F2cILODGUzMFLwdfp7UGhdG8dN39ncO",
+            "OU0UiOPH8QKBgQCBMU7sV4nsIjxdp9/SdU5wBFJxZFjR/wC90x0NbrH8zy5Osv+W",
+            "+z3jef+JSE0JzN6rb76D4VuIfEO/1uEhJNkJ6VilAtAetfSfRH4IOMRCr6G3HE91",
+            "j7AvCPkU4gIfFJR6BkkrVzPe2ohVlaRwUWoAXsoSIeuA0ef4nvJReQwgOQKBgEMZ",
+            "slHSTWLpVvCIMqdXbxe2Te/qDbyUrYh60uetEZ4Gkewocmb8kcxnH/INgDnp97o8",
+            "GLqAyjgt95GUWOobDnnp6EeljG7Xygoou9c+PPgeex+8KzuKd2EsR6DMI6Nfp+V6",
+            "ndOI0P5OUZpLfE87pv6GO78gOirGhkJYStguHZWWRAoGAPZxBPJPc2iXB33r3t4hE",
+            "5QICT78omcce+ArZUim9+PphcFCcLM4IUnc2T2jY+I+yxpI+YPC6UeaKhRyvZn4/",
+            "MNezdLuJAv7BBN7IH1P6BSE4nwoDYqnoJfile755wTyPgocedJyHrwLJQl7TipjV",
+            "Op8hH1S0afA+4wMfjN1gy7c=",
+            "-----END PRIVATE KEY-----"
+        ]
+        real_private_key = "\n".join(private_key_lines)
 
         creds_dict = {
             "type": "service_account",
@@ -297,6 +295,7 @@ def get_gspread_client():
             "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hillside-bot%40crm-hillside.iam.gserviceaccount.com",
             "universe_domain": "googleapis.com"
         }
+        
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         gc = gspread.authorize(creds)
         return gc
