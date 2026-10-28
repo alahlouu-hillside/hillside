@@ -243,6 +243,7 @@ import base64
 import base64
 
 import base64
+import json
 
 def get_gspread_client():
     try:
@@ -254,7 +255,7 @@ def get_gspread_client():
             "aCtFdFoKUU5yQ2FIZnRaTGlqK00vdWs2RFlmNnVYSzUyWWlWanBMelF2cWVTRlArTWhYTmFx"
             "Y0U0RUlWKzY2ekFtcUZEM1AKRjNrNHBZajNKa1ljM0hab0FZSGFnM2JIYXhvRE5aYjBIbFJr"
             "a3plejNpRGFyN1VuTEUvTDhUeEtDVmFLcjVyMVpTCnduc0VvWjgwK3haSVNjSnJRcVAzNm9D"
-            "THoySUljV09nZ2s2dzlHVXVOcHMvSXBxZFdMSmRvdnp0ZitcckRDTCsKTXcxRlVqT2xBZ01C"
+            "THoySUljV09nZ2s2dzlHVXVOcHMvSXBxZFdMSjRvdnp0ZitcckRDTCsKTXcxRlVqT2xBZ01C"
             "QUFFQ2dnRUFLbS9QM2Y5b3ljcGQ3cnhqTHRYVHVoZ1JvY2dGdGJyczU1YnFxWjBFY2UvTQp0"
             "QXJLYy9LWTdmblZSVjBNSUtYQktkbk9oSFlwR1pkclEvVy82bDNLS2FoenJuNno5aklqTG5j"
             "T1R4ZnZGbwpuZ1g0djNwWGdaVjhwM0Z1R0pVZXYwWDFXSUZGR3RXdUZDQzNGaC9tbXNzUGdo"
@@ -298,6 +299,7 @@ def get_gspread_client():
         gc = gspread.authorize(creds)
         return gc
     except Exception as e:
+        st.error(f"❌ Erreur critique dans get_gspread_client : {e}")
         return None
 
 @st.cache_data(ttl=30)
@@ -305,8 +307,22 @@ def synchroniser_google_sheet():
     try:
         gc = get_gspread_client()
         if not gc:
-            st.error("❌ Échec de l'initialisation du client Google (get_gspread_client a retourné None).")
             return pd.DataFrame()
+        
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        worksheet = sh.worksheet("pipeline commercial") if "pipeline commercial" in [w.title for w in sh.worksheets()] else sh.get_worksheet(0)
+        lignes = worksheet.get_all_values()
+        
+        if len(lignes) > 1:
+            en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
+            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
+            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
+            df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
+            return df_gs
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Erreur lors de l'ouverture du Google Sheet par ID : {e}")
+        return pd.DataFrame()
         
         sh = gc.open_by_key(SPREADSHEET_ID)
         
