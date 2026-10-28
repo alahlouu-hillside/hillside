@@ -238,46 +238,16 @@ SCOPES = [
 
 def get_gspread_client():
     credentials_file = "credentials.json"
-    if os.path.exists(credentials_file):
-        try:
-            creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
-            gc = gspread.authorize(creds)
-            return gc
-        except Exception as e:
-            print(f"Erreur d'authentification gspread : {e}")
-            return None
-    return None
-
-
-@st.cache_data(ttl=30)
-def synchroniser_google_sheet():
-    gc = get_gspread_client()
-    if gc:
-        try:
-            sh = gc.open_by_key(SPREADSHEET_ID)
-            worksheet = None
-            for ws in sh.worksheets():
-                if ws.title.strip().lower() == "pipeline commercial":
-                    worksheet = ws
-                    break
-            if worksheet is None:
-                worksheet = sh.get_worksheet(0)
-
-            lignes = worksheet.get_all_values()
-            if len(lignes) > 1:
-                en_tetes = [
-                    str(h).strip() if h != "" else f"Col_{i}"
-                    for i, h in enumerate(lignes[0])
-                ]
-                df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
-                df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
-                df_gs = df_gs.fillna("")
-                df_gs = df_gs[(df_gs != "").any(axis=1)]
-                return df_gs
-        except Exception as e:
-            print(f"Erreur d'ouverture Google Sheet par ID : {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
+    if not os.path.exists(credentials_file):
+        st.sidebar.error("❌ Fichier credentials.json introuvable à la racine !")
+        return None
+    try:
+        creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        return gc
+    except Exception as e:
+        st.sidebar.error(f"❌ Erreur d'auth Google : {str(e)}")
+        return None
 
 
 def mettre_a_jour_google_sheet_complet(df_modifie):
