@@ -4,6 +4,7 @@ import sqlite3
 import urllib.parse
 from google import genai
 import gspread
+from google.oauth2.service_account import Credentials
 import openpyxl
 import pandas as pd
 import streamlit as st
@@ -228,15 +229,31 @@ if "admin_authentifie" not in st.session_state:
     st.session_state.admin_authentifie = False
 
 
-# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS ULTRA-RÉSILIENT ---
-@st.cache_data(ttl=30)
-def synchroniser_google_sheet():
+# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS & GOOGLE-AUTH ---
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+def get_gspread_client():
     credentials_file = "credentials.json"
     if os.path.exists(credentials_file):
         try:
-            gc = gspread.service_account(filename=credentials_file)
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            return gc
+        except Exception as e:
+            print(f"Erreur d'authentification gspread : {e}")
+            return None
+    return None
 
+
+@st.cache_data(ttl=30)
+def synchroniser_google_sheet():
+    gc = get_gspread_client()
+    if gc:
+        try:
+            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -257,19 +274,16 @@ def synchroniser_google_sheet():
                 df_gs = df_gs[(df_gs != "").any(axis=1)]
                 return df_gs
         except Exception as e:
-            # En cas d'erreur de connexion Google Sheets, on bascule en mode local sans bloquer l'application
-            print(f"Mode secours local activé (Erreur Google Sheet : {e})")
+            print(f"Erreur d'ouverture Google Sheet : {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
 
 def mettre_a_jour_google_sheet_complet(df_modifie):
-    credentials_file = "credentials.json"
-    if os.path.exists(credentials_file):
+    gc = get_gspread_client()
+    if gc:
         try:
-            gc = gspread.service_account(filename=credentials_file)
             sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
-            
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -289,88 +303,89 @@ def mettre_a_jour_google_sheet_complet(df_modifie):
             return True, "Succès"
         except Exception as e:
             return False, str(e)
-    return False, "Fichier credentials.json introuvable"
+    return False, "Client gspread non initialisé"
 
 
 def ajouter_lead_google_sheet(nouvelles_donnees_dict):
-    try:
-        gc = gspread.service_account(filename="credentials.json")
-        sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
-        
-        worksheet = None
-        for ws in sh.worksheets():
-            if ws.title.strip().lower() == "pipeline commercial":
-                worksheet = ws
-                break
-        if worksheet is None:
-            worksheet = sh.get_worksheet(0)
+    gc = get_gspread_client()
+    if gc:
+        try:
+            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            worksheet = None
+            for ws in sh.worksheets():
+                if ws.title.strip().lower() == "pipeline commercial":
+                    worksheet = ws
+                    break
+            if worksheet is None:
+                worksheet = sh.get_worksheet(0)
 
-        en_tetes = worksheet.row_values(1)
-        id_col = next((h for h in en_tetes if h.lower() in ["id", "n°", "code", "référence"]), en_tetes[0])
-        id_prospect = str(nouvelles_donnees_dict.get(id_col, ""))
-        
-        if id_prospect:
-            cellule_id = worksheet.find(id_prospect)
-            if cellule_id:
-                return False, "Doublon détecté : cet ID existe déjà !"
+            en_tetes = worksheet.row_values(1)
+            id_col = next((h for h in en_tetes if h.lower() in ["id", "n°", "code", "référence"]), en_tetes[0])
+            id_prospect = str(nouvelles_donnees_dict.get(id_col, ""))
+            
+            if id_prospect:
+                cellule_id = worksheet.find(id_prospect)
+                if cellule_id:
+                    return False, "Doublon détecté : cet ID existe déjà !"
 
-        nouvelle_ligne = [str(nouvelles_donnees_dict.get(h, "")) for h in en_tetes]
-        worksheet.append_row(nouvelle_ligne)
-        st.cache_data.clear()
-        return True, "Succès"
-    except Exception as e:
-        return False, str(e)
+            nouvelle_ligne = [str(nouvelles_donnees_dict.get(h, "")) for h in en_tetes]
+            worksheet.append_row(nouvelle_ligne)
+            st.cache_data.clear()
+            return True, "Succès"
+        except Exception as e:
+            return False, str(e)
+    return False, "Client gspread non initialisé"
 
 
 def modifier_lead_par_id(id_cible, id_col_name, dictionnaire_modifications):
-    try:
-        gc = gspread.service_account(filename="credentials.json")
-        sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
-        
-        worksheet = None
-        for ws in sh.worksheets():
-            if ws.title.strip().lower() == "pipeline commercial":
-                worksheet = ws
-                break
-        if worksheet is None:
-            worksheet = sh.get_worksheet(0)
+    gc = get_gspread_client()
+    if gc:
+        try:
+            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            worksheet = None
+            for ws in sh.worksheets():
+                if ws.title.strip().lower() == "pipeline commercial":
+                    worksheet = ws
+                    break
+            if worksheet is None:
+                worksheet = sh.get_worksheet(0)
 
-        en_tetes = worksheet.row_values(1)
-        if id_col_name in en_tetes:
-            cell = worksheet.find(str(id_cible))
-            if cell:
-                row_num = cell.row
-                for col_name, nouvelle_valeur in dictionnaire_modifications.items():
-                    if col_name in en_tetes:
-                        col_idx = en_tetes.index(col_name) + 1
-                        worksheet.update_cell(row_num, col_idx, str(nouvelle_valeur))
-                st.cache_data.clear()
-                return True
-    except Exception as e:
-        st.error(f"Erreur de modification sur le Google Sheet : {e}")
+            en_tetes = worksheet.row_values(1)
+            if id_col_name in en_tetes:
+                cell = worksheet.find(str(id_cible))
+                if cell:
+                    row_num = cell.row
+                    for col_name, nouvelle_valeur in dictionnaire_modifications.items():
+                        if col_name in en_tetes:
+                            col_idx = en_tetes.index(col_name) + 1
+                            worksheet.update_cell(row_num, col_idx, str(nouvelle_valeur))
+                    st.cache_data.clear()
+                    return True
+        except Exception as e:
+            st.error(f"Erreur de modification sur le Google Sheet : {e}")
     return False
 
 
 def supprimer_lead_par_id(id_cible, id_col_name):
-    try:
-        gc = gspread.service_account(filename="credentials.json")
-        sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
-        
-        worksheet = None
-        for ws in sh.worksheets():
-            if ws.title.strip().lower() == "pipeline commercial":
-                worksheet = ws
-                break
-        if worksheet is None:
-            worksheet = sh.get_worksheet(0)
+    gc = get_gspread_client()
+    if gc:
+        try:
+            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            worksheet = None
+            for ws in sh.worksheets():
+                if ws.title.strip().lower() == "pipeline commercial":
+                    worksheet = ws
+                    break
+            if worksheet is None:
+                worksheet = sh.get_worksheet(0)
 
-        cell = worksheet.find(str(id_cible))
-        if cell:
-            worksheet.delete_rows(cell.row)
-            st.cache_data.clear()
-            return True
-    except Exception as e:
-        st.error(f"Erreur de suppression sur le Google Sheet : {e}")
+            cell = worksheet.find(str(id_cible))
+            if cell:
+                worksheet.delete_rows(cell.row)
+                st.cache_data.clear()
+                return True
+        except Exception as e:
+            st.error(f"Erreur de suppression sur le Google Sheet : {e}")
     return False
 
 
@@ -380,11 +395,9 @@ def get_df(table):
         if df_gs is not None and not df_gs.empty:
             return df_gs.fillna("")
         else:
-            # Table de secours locale si Google Sheets n'est pas joignable
             with sqlite3.connect("crm_hillside.db", timeout=10.0) as conn:
                 df_secours = pd.read_sql_query("SELECT * FROM pipeline_local", conn)
             if df_secours.empty:
-                # DataFrame par défaut pour éviter tout crash visuel
                 return pd.DataFrame(columns=["ID", "Nom Client", "Téléphone", "Email", "Projet", "Typologie", "Statut", "Budget", "Date Contact", "Notes"])
             return df_secours.fillna("")
     
@@ -485,7 +498,7 @@ df_lots = get_df("lots")
 
 if menu == "🏠 Accueil & Hub Central":
     st.title("🏠 Accueil & Hub Central - Hillside")
-    st.caption("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet[cite: 1].")
+    st.caption("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet.")
     st.markdown("---")
 
     with st.spinner("Chargement des indicateurs Google Sheets..."):
@@ -550,7 +563,7 @@ if menu == "🏠 Accueil & Hub Central":
         elif filtre_clique == "En retard":
             df_filtre = df_filtre[df_filtre.astype(str).apply(lambda x: x.str.contains("retard|en retard", case=False)).any(axis=1)]
 
-        st.info(f"📁 **Affichage actif :** {filtre_clique} ({len(df_filtre)} client(s) trouvé(s))[cite: 1].")
+        st.info(f"📁 **Affichage actif :** {filtre_clique} ({len(df_filtre)} client(s) trouvé(s)).")
         
         column_configurations = {}
         for col in df_leads.columns:
@@ -909,7 +922,7 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
 
 elif menu == "✍️ Espace Ventes & Quittances":
     st.title("✍️ Espace Ventes & Quittances")
-    st.caption("Enregistrez, modifiez, désistez ou switchez vos biens vendus en toute simplicité[cite: 1].")
+    st.caption("Enregistrez, modifiez, désistez ou switchez vos biens vendus en toute simplicité.")
     st.markdown("---")
 
     tab_res_new, tab_res_modif, tab_res_suivi = st.tabs([
@@ -1493,7 +1506,7 @@ elif menu == "⚙️ Paramètres & Analyses":
                     else:
                         sheet = wb.active
                         
-                    st.success("✅ Fichier Excel chargé avec succès[cite: 1] !")
+                    st.success("✅ Fichier Excel chargé avec succès !")
                     
                     merged_map = {}
                     for cr in sheet.merged_cells.ranges:
