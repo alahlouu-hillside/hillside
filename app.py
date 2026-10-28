@@ -241,15 +241,18 @@ import json
 def get_gspread_client():
     credentials_file = "credentials.json"
     
-    # Création automatique du fichier credentials.json depuis les secrets Streamlit s'il n'existe pas
-    if not os.path.exists(credentials_file):
-        try:
+    try:
+        if hasattr(st, "secrets") and len(st.secrets) > 0:
             if "gcp_service_account" in st.secrets:
                 secrets_dict = dict(st.secrets["gcp_service_account"])
-                with open(credentials_file, "w") as f:
-                    json.dump(secrets_dict, f)
-        except Exception as e:
-            st.error(f"Erreur création credentials depuis secrets : {e}")
+            else:
+                # Si les clés ont été collées à plat sans la section [gcp_service_account]
+                secrets_dict = dict(st.secrets)
+            
+            with open(credentials_file, "w") as f:
+                json.dump(secrets_dict, f)
+    except Exception as e:
+        st.sidebar.info(f"Note secrets : {e}")
 
     if os.path.exists(credentials_file):
         try:
@@ -257,7 +260,7 @@ def get_gspread_client():
             gc = gspread.authorize(creds)
             return gc
         except Exception as e:
-            st.error(f"Erreur d'authentification gspread : {e}")
+            st.sidebar.error(f"Erreur connexion Google : {e}")
             return None
     return None
 
