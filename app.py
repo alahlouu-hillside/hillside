@@ -247,107 +247,31 @@ import json
 
 def get_gspread_client():
     try:
-        pk_b64 = (
-            "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3FraUc5dzBCQVFF"
-            "RkFBU0NCS3N3Z2dTanFnRUFBb0lCQVFDemZiWGlpL2tGZmNPUgo5M09GMVpCZEN6M2c5dmg0"
-            "NHM0VXI2bWsvb28waXF2cjQ4eXNqOVppRkY2YUU5NjVQWmF0cE9HbWxlRzhUcnpHCkRHSjdk"
-            "TERaR0lvSnlGeHg4MGFCWUZMdlFydzhPSmNaM0Q5bC9LNjZRb251amhZY3dtRktVVFFKVzJG"
-            "aCtFdFoKUU5yQ2FIZnRaTGlqK00vdWs2RFlmNnVYSzUyWWlWanBMelF2cWVTRlArTWhYTmFx"
-            "Y0U0RUlWKzY2ekFtcUZEM1AKRjNrNHBZajNKa1ljM0hab0FZSGFnM2JIYXhvRE5aYjBIbFJr"
-            "a3plejNpRGFyN1VuTEUvTDhUeEtDVmFLcjVyMVpTCnduc0VvWjgwK3haSVNjSnJRcVAzNm9D"
-            "THoySUljV09nZ2s2dzlHVXVOcHMvSXBxZFdMSjRvdnp0ZitcckRDTCsKTXcxRlVqT2xBZ01C"
-            "QUFFQ2dnRUFLbS9QM2Y5b3ljcGQ3cnhqTHRYVHVoZ1JvY2dGdGJyczU1YnFxWjBFY2UvTQp0"
-            "QXJLYy9LWTdmblZSVjBNSUtYQktkbk9oSFlwR1pkclEvVy82bDNLS2FoenJuNno5aklqTG5j"
-            "T1R4ZnZGbwpuZ1g0djNwWGdaVjhwM0Z1R0pVZXYwWDFXSUZGR3RXdUZDQzNGaC9tbXNzUGdo"
-            "VlllSTVyODFKTlljbDNNYzlhCkltbzVBRVROd29TRHV5MmhSdlFnV1ZTYWdBbXk0amdET0wy"
-            "dStxZUlXTS8zeTRkTiAwMDBVWS9XVmVCcTZyTQpmZDU4b3d4SklYbHc2LzRQaC9nbGd6WUxo"
-            "UkdZd1dnbHF2aDY1b082OWRHTTJPNVd5anJqK0tWYkV0eUJuMHIKNHl5YTl6aXQ3SzZ3RzAw"
-            "ZTczSmpDUDlydDJrRXdVcnBDN3l6d1VBOFFLQmdRRFpZT3RWYTJ4VGhMVW5LU1ArClRHNW1v"
-            "T0tvMWJqZjFUZTZNdVBwb0IyN2dlM3N2T2pXbVRsNWsvRHVXRm1jUzB4SVpINWZ4aWhyaG5a"
-            "mJJRTIKZVJTUVdURmdEQ0NPb3pSS3IzZm5WVVB5WlVFYXJwODg0bHNWZ1dqWm5XTTNmYnJ0"
-            "WVBLTms2RmhGb3RCWXdnClJTaUMrNGlZcXFqdWw1RlYwU1RmNktONjlRS0JnUURUck9vZklt"
-            "SGhXYjR5UFpQdERJL2Q5VE4vbVhrZzRWU28KVkcwY0R0b3J5K1phZ0Vqdm1zU2E3Z3puWXBp"
-            "RlRxWnVpanVqQlBlMkxqZjAxbzRtNzlHeU1icFdqbEVERm16elpLU2tVMXB5QUROWUhFSEh5"
-            "elBVcUl6TnZmLzY5YkJJTnJGMmNDSU9ER1VNU0xXd2ZkcDdVZ2hkRzhkTjNuY3cKT1VVSXVQ"
-            "SDhRUUJnUUNCTVU3c1Y0bnNJanhkcDkvU2RVNXdCRlBuWkZqUi9VQzkweDBOYnJIOHl6NU9z"
-            "di9XLQorM3pqZWYrSlNFMEp6TnZyYjc2RDRWdUlmRU8vMXVlaEpOSmo2VmlsQXRBZXRmU2ZS"
-            "SDRJT01SQ3I2RzNIRTkxCmpDN0FjcEtVMmdJZkZKUjZCa2tyVnpQZTJvaFZsYVJ3VVdvQVhz"
-            "b1NJZXVBMGVmNG52SlJlUXFnT1FLQmdFTVoKc2xIU1RXLlBsdldDSU1xZFJ4YnhlMlRlL3FE"
-            "YnlVclloNjB1ZXRaRTRHa2V3b2NtYjhr3hkbngvSU5nRG5wcDdvOApHTHFBeWpndDk1R1dV"
-            "T2JETm5wNkVlbGpHN1h5Z29vdTljK1BwZ2VleDgrS3p1S2QyRXNSNkRNSTZOcisvVjYKbmRP"
-            "STBQNU9VdlpMZlBlODdwdjZHTzI4Z09pckdraEpZU3RndUhaV1dSQW9HQVp4QlBKUDJpWEJC"
-            "MzNyN3Q0aEUKNTFRSUNUNzhvbWNjZStBclpVSW05K1BwaGNGQ2xNNElVbmMyVDJqWUlpK015"
-            "eXpkTHU4SkF2N0JCTjdJdFA2QlNfNG53RGFRbldvREF5cW5vSmZpbGU3NTV3VHlQZ29jZWRKe"
-            "Uhyd0xKUUw3VGlwblYKT3A4aEhMUzBhZkE0NHdNZmpOMWd5N2M9Cg=="
-        )
-        real_private_key = base64.b64decode(pk_b64).decode('utf-8')
+        credentials_file = "credentials.json"
+        
+        # Vérification de l'existence du fichier sur GitHub / Streamlit Cloud
+        if not os.path.exists(credentials_file):
+            st.error(f"❌ Le fichier '{credentials_file}' est introuvable à la racine du dépôt.")
+            return None
+            
+        # Lecture propre du fichier JSON en utf-8 (ou utf-8-sig pour ignorer les éventuels caractères invisibles)
+        with open(credentials_file, "r", encoding="utf-8-sig") as f:
+            creds_data = json.load(f)
+            
+        # S'assurer que les retours à la ligne de la clé privée sont correctement interprétés
+        if "private_key" in creds_data:
+            pk = creds_data["private_key"]
+            if isinstance(pk, str):
+                # Remplace les éventuels double-échappements ou retours littéraux
+                pk = pk.replace("\\n", "\n")
+                creds_data["private_key"] = pk
 
-        creds_dict = {
-            "type": "service_account",
-            "project_id": "crm-hillside",
-            "private_key_id": "3d0cd04ce02a82e3e10c18628a514be18c133bbe",
-            "private_key": real_private_key,
-            "client_email": "hillside-bot@crm-hillside.iam.gserviceaccount.com",
-            "client_id": "107770060658250416573",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hillside-bot%40crm-hillside.iam.gserviceaccount.com",
-            "universe_domain": "googleapis.com"
-        }
-        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+        creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
         gc = gspread.authorize(creds)
         return gc
     except Exception as e:
         st.error(f"❌ Erreur critique dans get_gspread_client : {e}")
         return None
-
-@st.cache_data(ttl=30)
-def synchroniser_google_sheet():
-    try:
-        gc = get_gspread_client()
-        if not gc:
-            return pd.DataFrame()
-        
-        sh = gc.open_by_key(SPREADSHEET_ID)
-        worksheet = sh.worksheet("pipeline commercial") if "pipeline commercial" in [w.title for w in sh.worksheets()] else sh.get_worksheet(0)
-        lignes = worksheet.get_all_values()
-        
-        if len(lignes) > 1:
-            en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
-            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
-            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
-            df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
-            return df_gs
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"❌ Erreur lors de l'ouverture du Google Sheet par ID : {e}")
-        return pd.DataFrame()
-        
-        sh = gc.open_by_key(SPREADSHEET_ID)
-        
-        # Recherche de l'onglet "pipeline commercial"
-        titres_onglets = [w.title.strip().lower() for w in sh.worksheets()]
-        if "pipeline commercial" in titres_onglets:
-            worksheet = sh.worksheet("pipeline commercial")
-        else:
-            worksheet = sh.get_worksheet(0)
-            st.warning(f"⚠️ L'onglet 'pipeline commercial' n'a pas été trouvé. Utilisation par défaut de l'onglet : '{worksheet.title}'")
-
-        lignes = worksheet.get_all_values()
-        if len(lignes) > 1:
-            en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
-            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
-            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
-            df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
-            return df_gs
-        else:
-            st.warning("⚠️ Le Google Sheet est connecté mais semble vide (aucune ligne de données trouvée).")
-            return pd.DataFrame()
-            
-    except Exception as e:
-        st.error(f"❌ Erreur exacte Google Sheets : {str(e)}")
-        return pd.DataFrame()
         
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
