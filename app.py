@@ -229,7 +229,8 @@ if "admin_authentifie" not in st.session_state:
     st.session_state.admin_authentifie = False
 
 
-# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS & GOOGLE-AUTH ---
+# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS PAR ID UNIQUE ---
+SPREADSHEET_ID = "1-d-J5oB1BlT3JeUUPpann-nECzFw01cf-HBqeBjM1OA"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -253,7 +254,7 @@ def synchroniser_google_sheet():
     gc = get_gspread_client()
     if gc:
         try:
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            sh = gc.open_by_key(SPREADSHEET_ID)
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -274,7 +275,7 @@ def synchroniser_google_sheet():
                 df_gs = df_gs[(df_gs != "").any(axis=1)]
                 return df_gs
         except Exception as e:
-            print(f"Erreur d'ouverture Google Sheet : {e}")
+            print(f"Erreur d'ouverture Google Sheet par ID : {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
@@ -283,7 +284,7 @@ def mettre_a_jour_google_sheet_complet(df_modifie):
     gc = get_gspread_client()
     if gc:
         try:
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            sh = gc.open_by_key(SPREADSHEET_ID)
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -310,7 +311,7 @@ def ajouter_lead_google_sheet(nouvelles_donnees_dict):
     gc = get_gspread_client()
     if gc:
         try:
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            sh = gc.open_by_key(SPREADSHEET_ID)
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -341,7 +342,7 @@ def modifier_lead_par_id(id_cible, id_col_name, dictionnaire_modifications):
     gc = get_gspread_client()
     if gc:
         try:
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            sh = gc.open_by_key(SPREADSHEET_ID)
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
@@ -370,7 +371,7 @@ def supprimer_lead_par_id(id_cible, id_col_name):
     gc = get_gspread_client()
     if gc:
         try:
-            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+            sh = gc.open_by_key(SPREADSHEET_ID)
             worksheet = None
             for ws in sh.worksheets():
                 if ws.title.strip().lower() == "pipeline commercial":
