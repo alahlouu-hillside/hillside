@@ -240,39 +240,43 @@ import json
 
 def get_gspread_client():
     try:
-        # Dictionnaire d'authentification intégré en dur pour éliminer tout problème de fichier externe
+        # Clé privée nettoyée et formatée sur une seule ligne avec des \n explicites
+        private_key_raw = (
+            "-----BEGIN PRIVATE KEY-----\n"
+            "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCzvbXii/kFfcOR"
+            "93OF1ZBdCz3g9vh44s4Ur6mk/oo0iqvr48ysj9ZiEI6aE965PZatpOGmleG8TrzG"
+            "DGJ7dLDZGIoJyFxh80aBYFL3Qrw8OJcZ0D9l/K66QonujhYcwmFKUTQJW6Fh+EwJ"
+            "QNrCaHftZlij+M/uk6DY56uXK52YyPjpZEvqeSFP+MhXNaqcE4EIV+66zAmqFD3P"
+            "F3k4pYj3JkYc3HZAaYHq3bHaxoDNZb0HlRkzez3iDar7UnLE/L8TxKCVaKr5r1dS"
+            "wnSEoZ80+xZIscJrQpQ36oCLz2IIcWOggk6w9gUuNps/IpqdWLjdovZtf+9rDCL+"
+            "Mw1FujOlAgMBAAECggEAKm/P3f9oycpd7pxjLtXTuhgRocgFtbrs55bq4Y0Ece/M"
+            "tArKc/KY7fnVRV0MIKXBKdnMOhHYpGZdrQ/W/6l3KKahzrn6z9iJjLnClOTxfvFo"
+            "ngXx4v3pXgZv8p3FuGJevM0X1WIFFGtWuFCA3Fh/msssPghVYeI5r81JNYcl3Mc9a"
+            "Imo5AETNwoSDuy2hRvQgW6SagAmy4jGxDOL2u+qeIWM/3y4dN0103UY/WVeBq6rM"
+            "fd58owxJIXlw6/4Ph/glgzYLhRGYwWglqvh65mO69dGMZ2O5Wyjrj+KVbETyBn0r"
+            "4yya9zit7K6w3G0e73JjCP9rt2kTewUrpC7yzwUA8QKBgQDZYOtVa2xThlUnKSP+"
+            "TG5moOKoibjf1Te6MuPpoB27Ge3svOjWmTl5k/DuWFmcS0xIZH5fxihrhnZb2UE2"
+            "eRSQWTFgDCCOozRkHr3fNVUpyZUEarp884lsVgWjZnWM3fbrtYPKNn6FhFotBYwg"
+            "RSiC+4iYqqjul5FV0STf6KN69QKBgQDTrOofImHhWb4yPZPtDI/d9TN/mXKk4VSo"
+            "VG0cDtory+ZagEJvmsSa7gznYpiFTqZuIujBPE2Ljf01o4m79GyMbpWjlEDFmzzJ"
+            "SQkU1pyADHYHEHyzPUqIzNvx/69bBINr0F2cILODGUzMFLwdfp7UGhdG8dN39ncO"
+            "OU0UiOPH8QKBgQCBMU7sV4nsIjxdp9/SdU5wBFJxZFjR/wC90x0NbrH8zy5Osv+W"
+            "+z3jef+JSE0JzN6rb76D4VuIfEO/1uEhJNkJ6VilAtAetfSfRH4IOMRCr6G3HE91"
+            "j7AvCPkU4gIfFJR6BkkrVzPe2ohVlaRwUWoAXsoSIeuA0ef4nvJReQwgOQKBgEMZ"
+            "slHSTWLpVvCIMqdXbxe2Te/qDbyUrYh60uetEZ4Gkewocmb8kcxnH/INgDnp97o8"
+            "GLqAyjgt95GUWOobDnnp6EeljG7Xygoou9c+PPgeex+8KzuKd2EsR6DMI6Nfp+V6"
+            "ndOI0P5OUZpLfE87pv6GO78gOirGhkJYStguHZWWRAoGAPZxBPJPc2iXB33r3t4hE"
+            "5QICT78omcce+ArZUim9+PphcFCcLM4IUnc2T2jY+I+yxpI+YPC6UeaKhRyvZn4/"
+            "MNezdLuJAv7BBN7IH1P6BSE4nwoDYqnoJfile755wTyPgocedJyHrwLJQl7TipjV"
+            "Op8hH1S0afA+4wMfjN1gy7c="
+            "\n-----END PRIVATE KEY-----\n"
+        )
+
         creds_dict = {
             "type": "service_account",
             "project_id": "crm-hillside",
             "private_key_id": "3d0cd04ce02a82e3e10c18628a514be18c133bbe",
-            "private_key": """-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCzvbXii/kFfcOR
-93OF1ZBdCz3g9vh44s4Ur6mk/oo0iqvr48ysj9ZiEI6aE965PZatpOGmleG8TrzG
-DGJ7dLDZGIoJyFxh80aBYFL3Qrw8OJcZ0D9l/K66QonujhYcwmFKUTQJW6Fh+EwJ
-QNrCaHftZlij+M/uk6DY56uXK52YyPjpZEvqeSFP+MhXNaqcE4EIV+66zAmqFD3P
-F3k4pYj3JkYc3HZAaYHq3bHaxoDNZb0HlRkzez3iDar7UnLE/L8TxKCVaKr5r1dS
-wnSEoZ80+xZIscJrQpQ36oCLz2IIcWOggk6w9gUuNps/IpqdWLjdovZtf+9rDCL+
-Mw1FujOlAgMBAAECggEAKm/P3f9oycpd7pxjLtXTuhgRocgFtbrs55bq4Y0Ece/M
-tArKc/KY7fnVRV0MIKXBKdnMOhHYpGZdrQ/W/6l3KKahzrn6z9iJjLnClOTxfvFo
-ngXx4v3pXgZv8p3FuGJevM0X1WIFFGtWuFCA3Fh/msssPghVYeI5r81JNYcl3Mc9a
-Imo5AETNwoSDuy2hRvQgW6SagAmy4jGxDOL2u+qeIWM/3y4dN0103UY/WVeBq6rM
-fd58owxJIXlw6/4Ph/glgzYLhRGYwWglqvh65mO69dGMZ2O5Wyjrj+KVbETyBn0r
-4yya9zit7K6w3G0e73JjCP9rt2kTewUrpC7yzwUA8QKBgQDZYOtVa2xThlUnKSP+
-TG5moOKoibjf1Te6MuPpoB27Ge3svOjWmTl5k/DuWFmcS0xIZH5fxihrhnZb2UE2
-eRSQWTFgDCCOozRkHr3fNVUpyZUEarp884lsVgWjZnWM3fbrtYPKNn6FhFotBYwg
-RSiC+4iYqqjul5FV0STf6KN69QKBgQDTrOofImHhWb4yPZPtDI/d9TN/mXKk4VSo
-VG0cDtory+ZagEJvmsSa7gznYpiFTqZuIujBPE2Ljf01o4m79GyMbpWjlEDFmzzJ
-SQkU1pyADHYHEHyzPUqIzNvx/69bBINr0F2cILODGUzMFLwdfp7UGhdG8dN39ncO
-OU0UiOPH8QKBgQCBMU7sV4nsIjxdp9/SdU5wBFJxZFjR/wC90x0NbrH8zy5Osv+W
-+z3jef+JSE0JzN6rb76D4VuIfEO/1uEhJNkJ6VilAtAetfSfRH4IOMRCr6G3HE91
-j7AvCPkU4gIfFJR6BkkrVzPe2ohVlaRwUWoAXsoSIeuA0ef4nvJReQwgOQKBgEMZ
-slHSTWLpVvCIMqdXbxe2Te/qDbyUrYh60uetEZ4Gkewocmb8kcxnH/INgDnp97o8
-GLqAyjgt95GUWOobDnnp6EeljG7Xygoou9c+PPgeex+8KzuKd2EsR6DMI6Nfp+V6
-ndOI0P5OUZpLfE87pv6GO78gOirGhkJYStguHZWWRAoGAPZxBPJPc2iXB33r3t4hE
-5QICT78omcce+ArZUim9+PphcFCcLM4IUnc2T2jY+I+yxpI+YPC6UeaKhRyvZn4/
-MNezdLuJAv7BBN7IH1P6BSE4nwoDYqnoJfile755wTyPgocedJyHrwLJQl7TipjV
-Op8hH1S0afA+4wMfjN1gy7c=
------END PRIVATE KEY-----""",
+            "private_key": private_key_raw,
             "client_email": "hillside-bot@crm-hillside.iam.gserviceaccount.com",
             "client_id": "107770060658250416573",
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
