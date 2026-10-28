@@ -262,33 +262,24 @@ def get_gspread_client():
         
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
-    gc = get_gspread_client()
-    if gc:
-        try:
-            sh = gc.open_by_key(SPREADSHEET_ID)
-            worksheet = None
-            for ws in sh.worksheets():
-                if ws.title.strip().lower() == "pipeline commercial":
-                    worksheet = ws
-                    break
-            if worksheet is None:
-                worksheet = sh.get_worksheet(0)
-
-            lignes = worksheet.get_all_values()
-            if len(lignes) > 1:
-                en_tetes = [
-                    str(h).strip() if h != "" else f"Col_{i}"
-                    for i, h in enumerate(lignes[0])
-                ]
-                df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
-                df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
-                df_gs = df_gs.fillna("")
-                df_gs = df_gs[(df_gs != "").any(axis=1)]
-                return df_gs
-        except Exception as e:
-            print(f"Erreur d'ouverture Google Sheet par ID : {e}")
+    try:
+        gc = get_gspread_client()
+        if not gc:
             return pd.DataFrame()
-    return pd.DataFrame()
+        
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        worksheet = sh.worksheet("pipeline commercial") if "pipeline commercial" in [w.title for w in sh.worksheets()] else sh.get_worksheet(0)
+        lignes = worksheet.get_all_values()
+        
+        if len(lignes) > 1:
+            en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
+            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
+            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
+            df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
+            return df_gs
+        return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
 
 
 def mettre_a_jour_google_sheet_complet(df_modifie):
