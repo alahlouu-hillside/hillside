@@ -58,7 +58,7 @@ st.markdown(
 )
 
 
-# --- INITIALISATION DE LA SÉCURITÉ & CHARGEMENT DES LOTS ---
+# --- INITIALISATION DE LA SÉCURITÉ & BASE DE DONNÉES LOCALE ---
 def init_db():
     conn = sqlite3.connect("crm_hillside.db", timeout=10.0)
     c = conn.cursor()
@@ -94,6 +94,12 @@ def init_db():
             contrat_fichier TEXT
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_local (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom_client TEXT, telephone TEXT, email TEXT, projet TEXT, typologie TEXT, statut TEXT, budget REAL, date_contact TEXT, notes TEXT
+        )
+    """)
     
     colonnes_a_verifier = [
         ("pourcentage_avance", "REAL"),
@@ -113,14 +119,18 @@ def init_db():
         ("ref_paiement_av3", "TEXT"),
         ("banque_av3", "TEXT"),
         ("reliquat", "REAL"),
-        ("date_ech_reliquat", "TEXT"),
-        ("lien_drive", "TEXT")
+        ("date_ech_reliquat", "TEXT")
     ]
     for col_nom, col_type in colonnes_a_verifier:
         try:
-            c.execute(f"ALTER TABLE lots ADD COLUMN {col_nom} {col_type}")
+            c.execute(f"ALTER TABLE reservations ADD COLUMN {col_nom} {col_type}")
         except sqlite3.OperationalError:
             pass
+
+    try:
+        c.execute("ALTER TABLE lots ADD COLUMN lien_drive TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     fichiers_possibles = ["TDB_HILLSIDE.xls.xlsx", "TDB_HILLSIDE.xlsx", "TDB_HILLSIDE.xls"]
     fichier_trouve = next((f for f in fichiers_possibles if os.path.exists(f)), None)
@@ -218,39 +228,39 @@ if "admin_authentifie" not in st.session_state:
     st.session_state.admin_authentifie = False
 
 
-# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS ULTRA-ROBUSTE ---
-@st.cache_data(ttl=60)
+# --- MOTEUR DE SYNCHRONISATION GOOGLE SHEETS ULTRA-RÉSILIENT ---
+@st.cache_data(ttl=30)
 def synchroniser_google_sheet():
     credentials_file = "credentials.json"
-    if not os.path.exists(credentials_file):
-        return pd.DataFrame(), "Fichier credentials.json introuvable sur le serveur."
-    try:
-        gc = gspread.service_account(filename=credentials_file)
-        sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
+    if os.path.exists(credentials_file):
+        try:
+            gc = gspread.service_account(filename=credentials_file)
+            sh = gc.open("Suivi Commercial & Pipeline Leads - Immobilier")
 
-        worksheet = None
-        for ws in sh.worksheets():
-            if ws.title.strip().lower() == "pipeline commercial":
-                worksheet = ws
-                break
-        if worksheet is None:
-            worksheet = sh.get_worksheet(0)
+            worksheet = None
+            for ws in sh.worksheets():
+                if ws.title.strip().lower() == "pipeline commercial":
+                    worksheet = ws
+                    break
+            if worksheet is None:
+                worksheet = sh.get_worksheet(0)
 
-        lignes = worksheet.get_all_values()
-        if len(lignes) > 1:
-            en_tetes = [
-                str(h).strip() if h != "" else f"Col_{i}"
-                for i, h in enumerate(lignes[0])
-            ]
-            df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
-            df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
-            df_gs = df_gs.fillna("")
-            df_gs = df_gs[(df_gs != "").any(axis=1)]
-            return df_gs, "Succès"
-        else:
-            return pd.DataFrame(), "Le Google Sheet est vide."
-    except Exception as e:
-        return pd.DataFrame(), str(e)
+            lignes = worksheet.get_all_values()
+            if len(lignes) > 1:
+                en_tetes = [
+                    str(h).strip() if h != "" else f"Col_{i}"
+                    for i, h in enumerate(lignes[0])
+                ]
+                df_gs = pd.DataFrame(lignes[1:], columns=en_tetes)
+                df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
+                df_gs = df_gs.fillna("")
+                df_gs = df_gs[(df_gs != "").any(axis=1)]
+                return df_gs
+        except Exception as e:
+            # En cas d'erreur de connexion Google Sheets, on bascule en mode local sans bloquer l'application
+            print(f"Mode secours local activé (Erreur Google Sheet : {e})")
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 
 def mettre_a_jour_google_sheet_complet(df_modifie):
@@ -366,11 +376,17 @@ def supprimer_lead_par_id(id_cible, id_col_name):
 
 def get_df(table):
     if table == "pipeline_leads_crm":
-        df_gs, _ = synchroniser_google_sheet()
+        df_gs = synchroniser_google_sheet()
         if df_gs is not None and not df_gs.empty:
             return df_gs.fillna("")
         else:
-            return pd.DataFrame()
+            # Table de secours locale si Google Sheets n'est pas joignable
+            with sqlite3.connect("crm_hillside.db", timeout=10.0) as conn:
+                df_secours = pd.read_sql_query("SELECT * FROM pipeline_local", conn)
+            if df_secours.empty:
+                # DataFrame par défaut pour éviter tout crash visuel
+                return pd.DataFrame(columns=["ID", "Nom Client", "Téléphone", "Email", "Projet", "Typologie", "Statut", "Budget", "Date Contact", "Notes"])
+            return df_secours.fillna("")
     
     with sqlite3.connect("crm_hillside.db", timeout=10.0) as conn:
         df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
@@ -469,15 +485,17 @@ df_lots = get_df("lots")
 
 if menu == "🏠 Accueil & Hub Central":
     st.title("🏠 Accueil & Hub Central - Hillside")
-    st.caption("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet.")
+    st.caption("Tableau de bord de pilotage commercial connecté en direct avec votre Google Sheet[cite: 1].")
     st.markdown("---")
 
-    df_leads, msg_err = synchroniser_google_sheet()
+    with st.spinner("Chargement des indicateurs Google Sheets..."):
+        df_leads = get_df("pipeline_leads_crm")
 
     if df_leads is None or df_leads.empty:
-        st.error(f"⚠️ **Connexion Google Sheet impossible :** {msg_err}")
-        st.info("💡 **Conseil de dépannage :** Vérifiez que le fichier `credentials.json` est bien présent sur GitHub et que vous avez partagé votre Google Sheet avec l'e-mail du compte de service (présent dans le fichier JSON) en mode **Éditeur**.")
-    else:
+        st.info("ℹ️ Mode autonome actif (Google Sheets non détecté ou non configuré, affichage des données locales).")
+        df_leads = get_df("pipeline_leads_crm")
+
+    if not df_leads.empty:
         total_leads = len(df_leads)
         nb_bureau_vente = len(df_leads[df_leads.astype(str).apply(lambda x: x.str.contains("Bureau de vente", case=False)).any(axis=1)])
         nb_chauds_qualifies = len(df_leads[df_leads.astype(str).apply(lambda x: x.str.contains("Chaud|Qualifié", case=False)).any(axis=1)])
@@ -532,7 +550,7 @@ if menu == "🏠 Accueil & Hub Central":
         elif filtre_clique == "En retard":
             df_filtre = df_filtre[df_filtre.astype(str).apply(lambda x: x.str.contains("retard|en retard", case=False)).any(axis=1)]
 
-        st.info(f"📁 **Affichage actif :** {filtre_clique} ({len(df_filtre)} client(s) trouvé(s)).")
+        st.info(f"📁 **Affichage actif :** {filtre_clique} ({len(df_filtre)} client(s) trouvé(s))[cite: 1].")
         
         column_configurations = {}
         for col in df_leads.columns:
@@ -568,6 +586,8 @@ if menu == "🏠 Accueil & Hub Central":
                     st.balloons()
                 else:
                     st.error(f"❌ Échec de la synchronisation : {msg}")
+    else:
+        st.warning("Aucune donnée disponible dans le pipeline.")
 
 
 elif menu == "🤖 Assistant AI & Communication":
@@ -796,8 +816,8 @@ elif menu == "👥 Portefeuille Prospects & Clients":
 
 
 elif menu == "🏢 Catalogue & Stocks Immobiliers":
-    st.title("🏢 Catalogue & Stocks Immobiliers & Plans Google Drive")
-    st.caption("Consultez l'ensemble des lots et accédez aux plans stockés sur votre Google Drive.")
+    st.title("🏢 Catalogue & Stocks Immobiliers (Intégration Google Drive & Excel)")
+    st.caption("Consultez l'ensemble des lots et accédez aux plans stockés sur Google Drive.")
     st.markdown("---")
 
     if not df_lots.empty:
@@ -857,31 +877,32 @@ elif menu == "🏢 Catalogue & Stocks Immobiliers":
         st.warning("⚠️ Aucun appartement trouvé dans la base locale.")
 
     st.markdown("---")
-    st.subheader("📥 Accès au Plan 2D via Google Drive")
+    st.subheader("🌐 Accès Direct aux Plans (Google Drive)")
+    
     tous_les_lots = df_lots["code"].tolist() if not df_lots.empty else []
     if tous_les_lots:
-        lot_choisi_plan = st.selectbox("🔍 Choisir un lot (ex: A1, A4) pour ouvrir son plan Google Drive :", tous_les_lots)
-        if lot_choisi_plan:
-            # Récupération du lien Google Drive s'il est renseigné en base, sinon lien de recherche ou dossier
-            conn_d = sqlite3.connect("crm_hillside.db")
-            res_l = conn_d.execute("SELECT lien_drive FROM lots WHERE code = ?", (lot_choisi_plan,)).fetchone()
-            conn_d.close()
+        lot_plan_choisi = st.selectbox("🔍 Sélectionner un lot pour ouvrir son plan sur Google Drive :", tous_les_lots)
+        if lot_plan_choisi:
+            row_l = df_lots[df_lots["code"] == lot_plan_choisi].iloc[0]
+            lien_drv = row_l.get("lien_drive", "")
             
-            lien_actuel = res_l[0] if res_l and res_l[0] else ""
-            
-            if lien_actuel:
-                st.markdown(f'<a href="{lien_actuel}" target="_blank"><button style="background-color:#2563EB; color:white; padding:10px 20px; border:none; border-radius:6px; font-weight:bold;">🔗 Ouvrir le plan Google Drive du lot {lot_choisi_plan}</button></a>', unsafe_allow_html=True)
+            if lien_drv and str(lien_drv).startswith("http"):
+                st.markdown(f"""
+                    <a href="{lien_drv}" target="_blank">
+                        <button style="background-color:#1E3A8A; color:white; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; width:100%;">
+                            🔗 Ouvrir le plan du lot {lot_plan_choisi} sur Google Drive
+                        </button>
+                    </a>
+                """, unsafe_allow_html=True)
             else:
-                st.info(f"💡 Aucun lien direct n'est encore associé au lot **{lot_choisi_plan}**.")
-                nouveau_lien = st.text_input(f"Entrer le lien de partage Google Drive pour le lot {lot_choisi_plan} :")
-                if st.button("Enregistrer ce lien"):
-                    if nouveau_lien.strip():
-                        conn_upd = sqlite3.connect("crm_hillside.db")
-                        conn_upd.execute("UPDATE lots SET lien_drive = ? WHERE code = ?", (nouveau_lien.strip(), lot_choisi_plan))
-                        conn_upd.commit()
-                        conn_upd.close()
-                        st.success("✅ Lien Google Drive enregistré avec succès !")
-                        st.rerun()
+                st.info(f"💡 Aucun lien Google Drive direct n'est enregistré pour le lot **{lot_plan_choisi}**. Vous pouvez consulter votre dossier partagé Google Drive global.")
+                st.markdown("""
+                    <a href="https://drive.google.com" target="_blank">
+                        <button style="background-color:#0F172A; color:white; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; width:100%;">
+                            📁 Ouvrir Google Drive (Dossier Principal Hillside)
+                        </button>
+                    </a>
+                """, unsafe_allow_html=True)
     else:
         st.info("Aucun lot disponible.")
 
@@ -1356,3 +1377,227 @@ elif menu == "⚙️ Paramètres & Analyses":
                             c.execute("DELETE FROM lots")
                             
                             nb_importes = 0
+                            for _, row in df_excel.iterrows():
+                                code_val = row.iloc[0] if len(row) > 0 else None
+                                code = str(code_val).strip() if pd.notna(code_val) else ""
+                                
+                                exclus = ["nan", "total", "type", "prix moyen/m2", "ca previsionel", "ca pvp", "magasins"]
+                                if not code or code.lower() in exclus or not code.startswith(("A", "B", "C", "D", "Magasin")):
+                                    continue
+                                
+                                immeuble = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else "Immeuble A"
+                                typologie = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ("Magasin" if code.startswith("Magasin") else "F3")
+                                etage = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else "RDC"
+                                
+                                etat_brut = str(row.iloc[4]).strip().upper() if pd.notna(row.iloc[4]) else "DISPONIBLE"
+                                statut = "RESERVÉ" if "VENDU" in etat_brut or "RESERV" in etat_brut else "DISPONIBLE"
+                                
+                                vue = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else ""
+                                
+                                try:
+                                    surface_totale = float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0.0
+                                except:
+                                    surface_totale = 0.0
+
+                                try:
+                                    surface_interieure = float(row.iloc[7]) if pd.notna(row.iloc[7]) else 0.0
+                                except:
+                                    surface_interieure = 0.0
+
+                                try:
+                                    terrasse = float(row.iloc[8]) if pd.notna(row.iloc[8]) else 0.0
+                                except:
+                                    terrasse = 0.0
+
+                                try:
+                                    jardin = float(row.iloc[9]) if pd.notna(row.iloc[9]) else 0.0
+                                except:
+                                    jardin = 0.0
+
+                                try:
+                                    parking = int(float(row.iloc[10])) if pd.notna(row.iloc[10]) else (0 if code.startswith("Magasin") else 1)
+                                except:
+                                    parking = 1
+
+                                try:
+                                    prix_plancher = float(row.iloc[11]) if pd.notna(row.iloc[11]) else 0.0
+                                except:
+                                    prix_plancher = 0.0
+
+                                try:
+                                    prix_catalogue = float(row.iloc[12]) if pd.notna(row.iloc[12]) else 0.0
+                                except:
+                                    prix_catalogue = 0.0
+
+                                try:
+                                    remise_max = float(row.iloc[15]) if pd.notna(row.iloc[15]) else 0.0
+                                except:
+                                    remise_max = 0.0
+
+                                c.execute("""
+                                    INSERT OR REPLACE INTO lots (
+                                        code, immeuble, typologie, etage, statut, vue, surface_totale, 
+                                        surface_interieure, terrasse, jardin, parking, prix_plancher, prix_catalogue, remise_max
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (code, immeuble, typologie, etage, statut, vue, surface_totale, surface_interieure, terrasse, jardin, parking, prix_plancher, prix_catalogue, remise_max))
+                                nb_importes += 1
+                            
+                            conn.commit()
+
+                        st.success(f"✅ C'est OK ! Ancien stock supprimé et {nb_importes} nouveaux lots importés avec succès.")
+                        st.balloons()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de l'importation : {e}")
+
+        with tab_api:
+            st.subheader("Configuration de la Clé API (Gemini / Assistant)")
+            st.info("Enregistrez ou basculez facilement entre vos différentes clés API pour l'assistant intelligent.")
+            
+            with st.form("form_config_api"):
+                nom_k = st.text_input("Nom de la clé (ex: Principale, Personnel, etc.) :")
+                val_k = st.text_input("Valeur de la clé API :", type="password")
+                submit_cle = st.form_submit_button("💾 Enregistrer cette clé")
+                if submit_cle:
+                    if nom_k.strip() and val_k.strip():
+                        st.session_state.saved_api_keys[nom_k.strip()] = val_k.strip()
+                        st.success(f"✅ C'est OK ! Clé '{nom_k.strip()}' enregistrée avec succès.")
+                    else:
+                        st.error("Veuillez remplir à la fois le nom et la valeur de la clé.")
+
+            st.markdown("---")
+            st.subheader("Sélection de la Clé Active")
+            cles_dispos = list(st.session_state.saved_api_keys.keys())
+            try:
+                index_actuel = cles_dispos.index(st.session_state.active_api_key_name)
+            except ValueError:
+                index_actuel = 0
+
+            choix_cle = st.selectbox("Clé API active pour les fonctionnalités d'IA :", cles_dispos, index=index_actuel)
+            if choix_cle != st.session_state.active_api_key_name:
+                st.session_state.active_api_key_name = choix_cle
+                st.success(f"✅ C'est OK ! Clé active mise à jour : **{choix_cle}**")
+                st.rerun()
+
+        with tab_excel:
+            st.subheader("🤖 Analyse Intelligente & Rendu Excel Identique")
+            uploaded_excel = st.file_uploader("Choisissez votre fichier Excel :", type=["xlsx", "xls"], key="uploader_analyse_excel")
+            if uploaded_excel:
+                try:
+                    wb = openpyxl.load_workbook(uploaded_excel, data_only=True)
+                    feuilles = wb.sheetnames
+                    
+                    if len(feuilles) > 1:
+                        feuille_choisie = st.selectbox("Sélectionner la feuille du classeur :", feuilles)
+                        sheet = wb[feuille_choisie]
+                    else:
+                        sheet = wb.active
+                        
+                    st.success("✅ Fichier Excel chargé avec succès[cite: 1] !")
+                    
+                    merged_map = {}
+                    for cr in sheet.merged_cells.ranges:
+                        top_row, top_col = cr.min_row, cr.min_col
+                        rowspan = cr.max_row - cr.min_row + 1
+                        colspan = cr.max_col - cr.min_col + 1
+                        merged_map[(top_row, top_col)] = {"rowspan": rowspan, "colspan": colspan}
+                        for r in range(cr.min_row, cr.max_row + 1):
+                            for c in range(cr.min_col, cr.max_col + 1):
+                                if r == top_row and c == top_col:
+                                    continue
+                                merged_map[(r, c)] = "skip"
+
+                    html_table = "<div style='overflow-x:auto; max-height: 600px; border: 1px solid #ccc;'><table style='border-collapse:collapse; width:100%; font-family:Calibri, sans-serif; font-size:13px;'>"
+                    
+                    for r_idx in range(1, sheet.max_row + 1):
+                        html_table += "<tr>"
+                        for c_idx in range(1, sheet.max_column + 1):
+                            coord_status = merged_map.get((r_idx, c_idx), None)
+                            if coord_status == "skip":
+                                continue
+                            
+                            cell = sheet.cell(row=r_idx, column=c_idx)
+                            val = cell.value if cell.value is not None else ""
+                            if isinstance(val, str) and val.startswith("="):
+                                val = ""
+                            
+                            cell_styles = "border: 1px solid #d3d3d3; padding: 6px 10px; white-space: nowrap;"
+                            span_attrs = ""
+                            if isinstance(coord_status, dict):
+                                if coord_status["rowspan"] > 1:
+                                    span_attrs += f" rowspan='{coord_status['rowspan']}'"
+                                if coord_status["colspan"] > 1:
+                                    span_attrs += f" colspan='{coord_status['colspan']}'"
+                            
+                            if cell.fill and cell.fill.fill_type and cell.fill.start_color:
+                                rgb = cell.fill.start_color.rgb
+                                if isinstance(rgb, str):
+                                    if len(rgb) == 8:
+                                        rgb = rgb[2:]
+                                    if rgb and rgb not in ["000000", "FFFFFFFF", "None", "00000000"]:
+                                        cell_styles += f" background-color: #{rgb};"
+                            
+                            if cell.font:
+                                if cell.font.bold:
+                                    cell_styles += " font-weight: bold;"
+                                if cell.font.color and cell.font.color.rgb:
+                                    f_rgb = cell.font.color.rgb
+                                    if isinstance(f_rgb, str):
+                                        if len(f_rgb) == 8:
+                                            f_rgb = f_rgb[2:]
+                                        if f_rgb and f_rgb not in ["000000", "00000000"]:
+                                            cell_styles += f" color: #{f_rgb};"
+                            
+                            tag = "th" if r_idx == 1 else "td"
+                            if tag == "th":
+                                cell_styles += " background-color: #f1f3f4; font-weight: bold; position: sticky; top: 0; z-index: 2;"
+                            
+                            html_table += f"<{tag} style='{cell_styles}'{span_attrs}>{val}</{tag}>"
+                        html_table += "</tr>"
+                    html_table += "</table></div>"
+                    
+                    st.markdown("### 📊 Aperçu fidèle du fichier Excel (Mise en page complète)")
+                    st.markdown(html_table, unsafe_allow_html=True)
+                    
+                    data_list = list(sheet.values)
+                    if data_list:
+                        raw_headers = data_list[0] if len(data_list) > 0 else []
+                        en_tetes = [str(h).strip() if h is not None and str(h).strip() != "" else f"Col_{i+1}" for i, h in enumerate(raw_headers)]
+                        df_u = pd.DataFrame(data_list[1:], columns=en_tetes).fillna("") if len(data_list) > 1 else pd.DataFrame()
+                        
+                        st.markdown("---")
+                        st.subheader("💬 Poser une question à l'IA concernant ce tableau de bord")
+                        
+                        if "messages_excel_chat" not in st.session_state:
+                            st.session_state.messages_excel_chat = [{
+                                "role": "assistant",
+                                "content": "Bonjour ! Je suis prêt à analyser votre fichier Excel. Que souhaitez-vous savoir ?",
+                            }]
+
+                        for msg in st.session_state.messages_excel_chat:
+                            with st.chat_message(msg["role"]):
+                                st.write(msg["content"])
+
+                        user_excel_prompt = st.chat_input("Posez votre question sur les données du tableau...")
+                        if user_excel_prompt:
+                            if not active_api_key.strip():
+                                st.error("⚠️ Clé API requise (configurable dans l'onglet 'Clés API').")
+                            else:
+                                st.session_state.messages_excel_chat.append({"role": "user", "content": user_excel_prompt})
+                                with st.chat_message("user"):
+                                    st.write(user_excel_prompt)
+                                with st.chat_message("assistant"):
+                                    with st.spinner("Analyse du tableau par l'IA..."):
+                                        try:
+                                            ai_client = genai.Client(api_key=active_api_key.strip())
+                                            response = ai_client.models.generate_content(
+                                                model="gemini-3.8-flash", contents=user_excel_prompt
+                                            )
+                                            reponse_ia = response.text
+                                            st.write(reponse_ia)
+                                            st.session_state.messages_excel_chat.append({"role": "assistant", "content": reponse_ia})
+                                        except Exception as e:
+                                            st.error(f"Erreur lors de l'analyse : {e}")
+                                    
+                except Exception as e:
+                    st.error(f"Erreur lors de la lecture du fichier Excel : {e}")
