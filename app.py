@@ -1,8 +1,8 @@
-from datetime import datetime, date
+import json
 import os
 import sqlite3
 import urllib.parse
-from google import genai
+from datetime import datetime, date
 import gspread
 from google.oauth2.service_account import Credentials
 import openpyxl
@@ -241,7 +241,7 @@ import json
 def get_gspread_client():
     credentials_file = "credentials.json"
     
-    # Si le fichier n'existe pas physiquement, on le crée dynamiquement depuis les secrets Streamlit
+    # Création automatique du fichier credentials.json depuis les secrets Streamlit s'il n'existe pas
     if not os.path.exists(credentials_file):
         try:
             if "gcp_service_account" in st.secrets:
@@ -249,7 +249,7 @@ def get_gspread_client():
                 with open(credentials_file, "w") as f:
                     json.dump(secrets_dict, f)
         except Exception as e:
-            print(f"Erreur lors de la création du fichier credentials depuis les secrets : {e}")
+            st.error(f"Erreur création credentials depuis secrets : {e}")
 
     if os.path.exists(credentials_file):
         try:
@@ -257,10 +257,9 @@ def get_gspread_client():
             gc = gspread.authorize(creds)
             return gc
         except Exception as e:
-            print(f"Erreur d'authentification gspread : {e}")
+            st.error(f"Erreur d'authentification gspread : {e}")
             return None
     return None
-
 
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
