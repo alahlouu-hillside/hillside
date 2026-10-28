@@ -4,4 +4,3 @@ openpyxl
 gspread
 google-auth
 google-genai
-openpyxl
