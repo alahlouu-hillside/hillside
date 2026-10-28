@@ -240,6 +240,8 @@ import json
 
 import base64
 
+import base64
+
 def get_gspread_client():
     try:
         # Clé privée encodée en base64 pour éviter toute altération de caractères ou de sauts de ligne
@@ -273,10 +275,10 @@ def get_gspread_client():
             "T2JETm5wNkVlbGpHN1h5Z29vdTljK1BwZ2VleDgrS3p1S2QyRXNSNkRNSTZOcisvVjYKbmRP"
             "STBQNU9VdlpMZlBlODdwdjZHTzI4Z09pckdraEpZU3RndUhaV1dSQW9HQVp4QlBKUDJpWEJC"
             "MzNyN3Q0aEUKNTFRSUNUNzhvbWNjZStBclpVSW05K1BwaGNGQ2xNNElVbmMyVDJqWUlpK015"
-            "eXpkTHU4SkF2N0JCTjdJdFA2QlNfNG53RGFRbldvREF5cW5vSmZpbGU3NTV3VHlQZ29jZWRK"
-            "eUhyd0xKUUw3VGlwblYKT3A4aEhMUzBhZkE0NHdNZmpOMWd5N2M9Cg=="
-        ]
-        
+            "eXpkTHU4SkF2N0JCTjdJdFA2QlNfNG53RGFRbldvREF5cW5vSmZpbGU3NTV3VHlQZ29jZWRKe"
+            "Uhyd0xKUUw3VGlwblYKT3A4aEhMUzBhZkE0NHdNZmpOMWd5N2M9Cg=="
+        )  # <-- Fermeture corrigée ici avec une parenthèse ')'
+
         real_private_key = base64.b64decode(pk_b64).decode('utf-8')
 
         creds_dict = {
