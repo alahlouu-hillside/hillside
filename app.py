@@ -239,25 +239,29 @@ SCOPES = [
 import json
 
 def get_gspread_client():
-    credentials_file = "credentials.json"
+    # Détermine le chemin absolu du dossier où se trouve app.py
+    dossier_actuel = os.path.dirname(os.path.abspath(__file__))
+    credentials_file = os.path.join(dossier_actuel, "credentials.json")
+    
     if not os.path.exists(credentials_file):
-        st.sidebar.error("❌ Fichier credentials.json introuvable sur GitHub !")
+        st.sidebar.error(f"❌ Fichier introuvable à : {credentials_file}")
         return None
+        
     try:
-        # Lecture du fichier JSON pour s'assurer que la clé privée est bien formatée
-        with open(credentials_file, "r") as f:
+        with open(credentials_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         
-        # Correction automatique des sauts de ligne dans la clé privée
+        # Nettoyage sécurisé des sauts de ligne de la clé privée
         if "private_key" in data:
             data["private_key"] = data["private_key"].replace("\\n", "\n")
-        
+            
         creds = Credentials.from_service_account_info(data, scopes=SCOPES)
         gc = gspread.authorize(creds)
         return gc
     except Exception as e:
         st.sidebar.error(f"Erreur connexion Google : {e}")
         return None
+        
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
     gc = get_gspread_client()
