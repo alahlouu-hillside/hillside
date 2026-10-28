@@ -247,30 +247,22 @@ import json
 
 def get_gspread_client():
     try:
-        credentials_file = "credentials.json"
-        
-        # Vérification de l'existence du fichier sur GitHub / Streamlit Cloud
-        if not os.path.exists(credentials_file):
-            st.error(f"❌ Le fichier '{credentials_file}' est introuvable à la racine du dépôt.")
+        # Vérification et lecture directe des secrets natifs de Streamlit Cloud
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            
+            # S'assure que les sauts de ligne de la clé privée sont bien formés
+            if "private_key" in creds_dict:
+                creds_dict["private_key"] = str(creds_dict["private_key"]).replace("\\n", "\n")
+                
+            creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            return gc
+        else:
+            st.error("❌ La section [gcp_service_account] est introuvable dans les Secrets de Streamlit Cloud.")
             return None
-            
-        # Lecture propre du fichier JSON en utf-8 (ou utf-8-sig pour ignorer les éventuels caractères invisibles)
-        with open(credentials_file, "r", encoding="utf-8-sig") as f:
-            creds_data = json.load(f)
-            
-        # S'assurer que les retours à la ligne de la clé privée sont correctement interprétés
-        if "private_key" in creds_data:
-            pk = creds_data["private_key"]
-            if isinstance(pk, str):
-                # Remplace les éventuels double-échappements ou retours littéraux
-                pk = pk.replace("\\n", "\n")
-                creds_data["private_key"] = pk
-
-        creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        gc = gspread.authorize(creds)
-        return gc
     except Exception as e:
-        st.error(f"❌ Erreur critique dans get_gspread_client : {e}")
+        st.error(f"❌ Erreur de connexion Google via Secrets : {e}")
         return None
         
 @st.cache_data(ttl=30)
