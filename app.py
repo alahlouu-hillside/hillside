@@ -246,9 +246,18 @@ def get_gspread_client():
             if "gcp_service_account" in st.secrets:
                 secrets_dict = dict(st.secrets["gcp_service_account"])
             else:
-                # Si les clés ont été collées à plat sans la section [gcp_service_account]
                 secrets_dict = dict(st.secrets)
             
+            # Nettoyage et correction des sauts de ligne de la clé privée si elle contient des espaces ou des \n brisés
+            if "private_key" in secrets_dict:
+                pk = str(secrets_dict["private_key"])
+                # S'assure que les retours à la ligne sont bien des \n valides pour le format PEM
+                pk = pk.replace("\\n", "\n")
+                if not pk.startswith("-----BEGIN PRIVATE KEY-----"):
+                    # Réajustement si les en-têtes ont été altérés
+                    pass
+                secrets_dict["private_key"] = pk
+
             with open(credentials_file, "w") as f:
                 json.dump(secrets_dict, f)
     except Exception as e:
