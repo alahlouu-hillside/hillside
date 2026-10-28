@@ -236,17 +236,30 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+import json
+
 def get_gspread_client():
     credentials_file = "credentials.json"
+    
+    # Si le fichier n'existe pas physiquement, on le crée dynamiquement depuis les secrets Streamlit
     if not os.path.exists(credentials_file):
-        return None
-    try:
-        creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
-        gc = gspread.authorize(creds)
-        return gc
-    except Exception as e:
-        print(f"Erreur d'authentification gspread : {e}")
-        return None
+        try:
+            if "gcp_service_account" in st.secrets:
+                secrets_dict = dict(st.secrets["gcp_service_account"])
+                with open(credentials_file, "w") as f:
+                    json.dump(secrets_dict, f)
+        except Exception as e:
+            print(f"Erreur lors de la création du fichier credentials depuis les secrets : {e}")
+
+    if os.path.exists(credentials_file):
+        try:
+            creds = Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            return gc
+        except Exception as e:
+            print(f"Erreur d'authentification gspread : {e}")
+            return None
+    return None
 
 
 @st.cache_data(ttl=30)
