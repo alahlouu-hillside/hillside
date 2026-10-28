@@ -305,9 +305,19 @@ def synchroniser_google_sheet():
     try:
         gc = get_gspread_client()
         if not gc:
+            st.error("❌ Échec de l'initialisation du client Google (get_gspread_client a retourné None).")
             return pd.DataFrame()
+        
         sh = gc.open_by_key(SPREADSHEET_ID)
-        worksheet = sh.worksheet("pipeline commercial") if "pipeline commercial" in [w.title for w in sh.worksheets()] else sh.get_worksheet(0)
+        
+        # Recherche de l'onglet "pipeline commercial"
+        titres_onglets = [w.title.strip().lower() for w in sh.worksheets()]
+        if "pipeline commercial" in titres_onglets:
+            worksheet = sh.worksheet("pipeline commercial")
+        else:
+            worksheet = sh.get_worksheet(0)
+            st.warning(f"⚠️ L'onglet 'pipeline commercial' n'a pas été trouvé. Utilisation par défaut de l'onglet : '{worksheet.title}'")
+
         lignes = worksheet.get_all_values()
         if len(lignes) > 1:
             en_tetes = [str(h).strip() if h != "" else f"Col_{i}" for i, h in enumerate(lignes[0])]
@@ -315,10 +325,13 @@ def synchroniser_google_sheet():
             df_gs = df_gs.loc[:, ~df_gs.columns.str.startswith("Col_")]
             df_gs = df_gs.fillna("").loc[(df_gs != "").any(axis=1)]
             return df_gs
+        else:
+            st.warning("⚠️ Le Google Sheet est connecté mais semble vide (aucune ligne de données trouvée).")
+            return pd.DataFrame()
+            
     except Exception as e:
-        # En cas de blocage réseau, retourne un DataFrame vide instantanément sans bloquer l'app
+        st.error(f"❌ Erreur exacte Google Sheets : {str(e)}")
         return pd.DataFrame()
-    return pd.DataFrame()
         
 @st.cache_data(ttl=30)
 def synchroniser_google_sheet():
